@@ -1,0 +1,795 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Carnet de révisions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: bandeau de progression + filtres matières, puis calendrier (large) + colonne À faire / Faits groupées par matière, puis le tableau par matière en pleine largeur */
+:root{
+  --bg:#eef1f6; --surface:#ffffff; --ink:#16213d; --muted:#5d6782; --line:#d5dbe7;
+  --accent:#2747c9; --accent-soft:#e3e8fb; --marker:#f6e04a; --marker-ink:#3d3500;
+  --done:#1f8a5b; --done-soft:#dcf1e6; --today:#2747c9;
+  --todo:#c8372d; --todo-soft:#fbe3e1; --mid:#d9730d; --mid-soft:#fdebd8;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1424; --surface:#171e33; --ink:#e6eaf5; --muted:#98a2bf; --line:#2a3452;
+  --accent:#7d95ff; --accent-soft:#232d52; --marker:#e9d43a; --marker-ink:#2a2400;
+  --done:#4fcf93; --done-soft:#173a2b; --today:#7d95ff; --todo:#ff7a6e; --todo-soft:#45201f; --mid:#ffa94d; --mid-soft:#45301a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1424; --surface:#171e33; --ink:#e6eaf5; --muted:#98a2bf; --line:#2a3452;
+  --accent:#7d95ff; --accent-soft:#232d52; --marker:#e9d43a; --marker-ink:#2a2400;
+  --done:#4fcf93; --done-soft:#173a2b; --today:#7d95ff; --todo:#ff7a6e; --todo-soft:#45201f; --mid:#ffa94d; --mid-soft:#45301a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(1.7rem,4vw,2.4rem);font-weight:700}
+h2{font-size:1.15rem;font-weight:700}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,label:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:500;font-size:.88rem}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.btn.ghost{border-color:transparent;background:transparent}
+
+header{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between}
+.stats{display:flex;gap:28px;flex-wrap:wrap}
+.stat .v{font-family:var(--f-mono);font-size:1.6rem;font-weight:600}
+.stat .v small{font-size:.9rem;color:var(--muted);font-weight:400}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;width:100%}
+.bar>i{display:block;height:100%;background:var(--done);transition:width .4s}
+
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.fbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-size:.84rem;display:inline-flex;gap:7px;align-items:center}
+.fbtn .dot{margin:0}
+.fbtn.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fbtn small{font-family:var(--f-mono);opacity:.75;font-size:.75rem}
+.exams{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ebtn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 12px;font-size:.88rem;font-weight:600;display:inline-flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left}
+.ebtn small{font-weight:400;font-size:.74rem;color:var(--muted)}
+.ebtn.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.ebtn.on small{color:var(--ink)}
+.remain{font-size:.84rem;background:var(--todo-soft);border-radius:8px;padding:8px 10px;margin-bottom:10px}
+.remain b{font-family:var(--f-mono)}
+
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px}
+
+/* calendrier */
+.calhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.calhead h2{text-transform:capitalize;min-width:10ch}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.dow{text-align:center;font-size:.72rem;font-weight:600;color:var(--muted);padding-bottom:4px;letter-spacing:.06em}
+.day{min-height:104px;border:1px solid var(--line);border-radius:8px;padding:5px;display:flex;flex-direction:column;gap:3px;background:var(--surface);min-width:0;transition:background .15s}
+.day.out{opacity:.45}
+.day.today{border-color:var(--today);box-shadow:inset 0 0 0 1px var(--today)}
+.day.drop{background:var(--accent-soft)}
+.day.armed{cursor:copy}
+.day.armed:hover{background:var(--accent-soft)}
+.dn{display:flex;justify-content:space-between;align-items:center;font-family:var(--f-mono);font-size:.78rem;color:var(--muted)}
+.day.today .dn b{background:var(--today);color:var(--surface);border-radius:4px;padding:0 4px}
+.dn b{font-weight:600}
+.addday{border:0;background:none;color:var(--muted);font-size:1rem;line-height:1;padding:0 3px;border-radius:4px;opacity:0}
+.day:hover .addday,.addday:focus-visible{opacity:1}
+.sess{display:flex;align-items:center;gap:4px;font-size:.74rem;line-height:1.2;border-radius:5px;padding:3px 4px;background:var(--accent-soft);min-width:0;border-left:3px solid var(--c,var(--accent))}
+.sess.done{background:var(--done-soft)}
+.sess.done span{text-decoration:line-through;text-decoration-color:var(--done)}
+.sess span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess input{margin:0;accent-color:var(--done);flex:none;width:14px;height:14px}
+.sess .x{border:0;background:none;color:var(--muted);padding:0 2px;font-size:.85rem;flex:none}
+@media (max-width:620px){.day{min-height:72px;padding:3px}.sess span{white-space:normal;word-break:break-word}.sess .x{display:none}.addday{opacity:1}}
+
+/* listes */
+.lists{display:flex;flex-direction:column;gap:16px}
+.lhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.chips{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto;padding-right:2px}
+.grp{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px;padding:8px 10px;position:sticky;top:0;background:var(--bg);z-index:1;border:1px solid var(--line);border-radius:8px;width:100%;text-align:left;cursor:pointer}
+.grp:hover{border-color:var(--accent)}
+.grp .chev,tr.gh .chev{display:inline-block;transition:transform .15s;color:var(--muted);font-size:.8rem}
+.grp.open .chev,tr.gh.open .chev{transform:rotate(90deg)}
+.grp.open{background:var(--accent-soft)}
+tr.gh{cursor:pointer}
+.chip.offr{background:var(--bg);border-color:var(--line);border-left-color:var(--line);opacity:.6}
+.chip.offr .nm b{color:var(--muted);font-weight:500}
+tr.offr td{background:var(--bg);color:var(--muted)}
+tr.offr td input[type=text]{color:var(--muted)}
+tr.offr td .pill,tr.offr td .score{opacity:.6}
+tr.gh:hover td{background:var(--accent-soft)}
+.grp small{font-family:var(--f-mono);margin-left:auto}
+.chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:7px 9px;background:var(--surface);cursor:grab;text-align:left;width:100%}
+.chip:hover{border-color:var(--accent);border-left-color:var(--c)}
+.chip.sel{background:var(--accent-soft);border-color:var(--accent);border-left-color:var(--c)}
+.chip .nm{flex:1;min-width:0}
+.chip .nm b{display:block;font-weight:600;font-size:.86rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip .nm em{font-style:normal;font-size:.74rem;color:var(--muted)}
+.it{font-family:var(--f-mono);font-size:.72rem;font-weight:600;color:var(--muted);flex:none;min-width:2.6em}
+.link{font-size:.7rem;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:0 5px;white-space:nowrap}
+.count{font-family:var(--f-mono);font-weight:600;font-size:.82rem;background:var(--marker);color:var(--marker-ink);border-radius:5px;padding:1px 7px;flex:none}
+.empty{color:var(--muted);font-size:.86rem;padding:8px 2px}
+.hint{font-size:.8rem;color:var(--muted);margin-top:8px}
+.armedbar{display:flex;gap:8px;align-items:center;justify-content:space-between;background:var(--marker);color:var(--marker-ink);border-radius:8px;padding:8px 12px;font-size:.88rem;font-weight:500}
+.armedbar .btn{background:transparent;border-color:var(--marker-ink);color:var(--marker-ink);padding:3px 10px}
+
+/* tableau */
+.thead{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-bottom:12px}
+.tools{display:flex;gap:8px;flex-wrap:wrap}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:820px;font-size:.88rem}
+th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:middle}
+th:last-child,td:last-child{border-right:0}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;background:var(--bg)}
+tr.gh td{background:var(--bg);font-family:var(--f-display);font-weight:700;font-size:.98rem;padding:9px 10px}
+tr.gh td span.num{font-family:var(--f-mono);font-size:.78rem;font-weight:400;color:var(--muted);margin-left:8px}
+td.itc{width:70px;font-family:var(--f-mono);font-weight:600}
+td input[type=text]{border:0;background:transparent;width:100%;font:inherit;color:inherit;padding:2px 0}
+td input[type=text]:focus{outline:none;box-shadow:inset 0 -2px 0 var(--accent)}
+td.itc input{font-family:var(--f-mono);font-weight:600}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:6px;vertical-align:middle;flex:none}
+.stepper{display:inline-flex;align-items:center;gap:4px}
+.stepper button{border:1px solid var(--line);background:var(--surface);border-radius:5px;width:22px;height:22px;line-height:1;padding:0}
+.pill{display:inline-block;border-radius:999px;padding:2px 9px;font-size:.74rem;font-weight:600}
+.pill.todo{background:var(--todo-soft);color:var(--todo)}
+.pill.ok{background:var(--done-soft);color:var(--done)}
+.pill.mid{background:var(--mid-soft);color:var(--mid)}
+.st-todo{color:var(--todo)}.st-mid{color:var(--mid)}.st-done{color:var(--done)}
+.panel.k-todo{border-top:4px solid var(--todo)}.panel.k-mid{border-top:4px solid var(--mid)}.panel.k-done{border-top:4px solid var(--done)}
+.count.todo{background:var(--todo-soft);color:var(--todo)}.count.mid{background:var(--mid-soft);color:var(--mid)}.count.done{background:var(--done-soft);color:var(--done)}
+.bar{display:flex}
+.bar>i.mid{background:var(--mid)}
+.del{border:0;background:none;color:var(--muted);font-size:1rem}
+.del:hover{color:var(--ink)}
+.addrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.addrow input{flex:1 1 140px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);font:inherit}
+.addrow input#newItem{flex:0 1 90px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:.88rem;z-index:20;max-width:calc(100% - 32px)}
+.saved{font-size:.78rem;color:var(--muted)}
+.picker{position:fixed;inset:0;background:rgba(10,15,30,.45);display:flex;align-items:center;justify-content:center;z-index:30;padding:16px}
+.picker .panel{width:min(400px,100%);max-height:80vh;display:flex;flex-direction:column;gap:10px}
+.picker .chips{max-height:55vh}
+.day{cursor:pointer}
+.redac{display:flex;gap:6px;align-items:center;font-size:.74rem;color:var(--muted);margin-top:2px}
+.redac input[type=text]{font-size:.74rem;color:var(--muted)}
+.redac b{font-weight:600;white-space:nowrap}
+.sess.late{background:var(--todo-soft);border-left-color:var(--todo)}
+.late-t{color:var(--todo);font-weight:600}
+.more{border:0;background:none;color:var(--accent);font-size:.74rem;text-align:left;padding:2px 4px;font-weight:600}
+.picker .panel.dayp{width:min(520px,100%);max-height:88vh;overflow:auto;gap:8px}
+.dlist{display:flex;flex-direction:column;gap:4px;max-height:32vh;overflow:auto}
+.ditem{display:flex;gap:8px;align-items:center;font-size:.86rem;padding:6px 8px;border-radius:6px;border:1px solid var(--line);border-left:3px solid var(--c);cursor:pointer}
+.ditem.done{background:var(--done-soft)}
+.ditem.done .nm2{text-decoration:line-through;text-decoration-color:var(--done)}
+.ditem.late{background:var(--todo-soft)}
+.ditem .nm2{flex:1;min-width:0}
+.ditem input{accent-color:var(--done);margin:0;flex:none}
+.ditem .x{border:0;background:none;color:var(--muted);font-size:1rem;flex:none}
+.drow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.drow input[type=date],.dayp select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font:inherit}
+.dayp select{width:100%}
+.dsec{margin-top:6px;padding-top:10px;border-top:1px solid var(--line)}
+.lcagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:20px;align-items:start}
+@media (max-width:900px){.lcagrid{grid-template-columns:minmax(0,1fr)}}
+.lcalist{display:flex;flex-direction:column;gap:6px}
+.fiche{display:flex;gap:8px;align-items:center;padding:7px 9px;border-radius:8px;border:1px solid var(--line);font-size:.86rem;text-decoration:none;color:var(--ink)}
+.fiche:hover{border-color:var(--accent)}
+.fiche.ok{background:var(--done-soft)}
+.fiche .nm2{flex:1;min-width:0}
+table.lcatab{min-width:480px}
+.lcatab input[type=date]{border:0;background:transparent;color:inherit;font:inherit}
+#annSel{flex:1 1 200px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);font:inherit}
+.tabs{display:inline-flex;background:var(--line);border-radius:10px;padding:3px;gap:3px;margin-top:10px}
+.tab{border:0;background:transparent;border-radius:8px;padding:6px 18px;font-weight:600;font-size:.92rem;color:var(--muted)}
+.tab.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.score{font-family:var(--f-mono);font-size:.72rem;font-weight:600;border-radius:4px;padding:0 5px;border:0;flex:none;white-space:nowrap;line-height:1.5}
+.score.good{background:var(--done-soft);color:var(--done)}.score.ok{background:var(--mid-soft);color:var(--mid)}.score.low{background:var(--todo-soft);color:var(--todo)}.score.none{background:var(--line);color:var(--muted)}
+.scoreform{display:flex;flex-direction:column;gap:10px}
+.scoreform input{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--surface);color:var(--ink);font-family:var(--f-mono);font-size:1.1rem}
+.scoreform .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="label">Révisions · <span id="todayLbl"></span></div>
+      <h1>Carnet de révisions</h1>
+      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button></div> <span class="saved" id="hypoUpd"></span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="label" id="lSeen">Items terminés (3 révisions)</div><div class="v"><span id="sSeen">0</span><small>/<span id="sTotal">0</span></small></div></div>
+      <div class="stat"><div class="label" id="lRev">Révisions faites</div><div class="v" id="sRev">0</div></div>
+      <div class="stat" id="statAvg" hidden><div class="label">Score moyen</div><div class="v" id="sAvg">—</div></div>
+      <div class="stat"><div class="label" id="lNext">Prévues à venir</div><div class="v" id="sNext">0</div></div>
+    </div>
+    <div class="bar" aria-label="Progression"><i id="bar" style="width:0"></i><i id="barMid" class="mid" style="width:0"></i></div>
+  </header>
+
+  <div class="exams" id="exams" aria-label="Examen"></div>
+  <div class="filters" id="filters"></div>
+
+  <div id="armed" class="armedbar" hidden>
+    <span>Touche un jour du calendrier pour placer <b id="armedName"></b></span>
+    <button class="btn" id="disarm">Annuler</button>
+  </div>
+
+  <section id="lcaView" hidden>
+    <div class="lcagrid">
+      <section class="panel">
+        <div class="lhead"><h2>Fiches LCA One</h2><span class="label num" id="lcaFN"></span></div>
+        <div id="lcaFiches" class="lcalist"></div>
+        <p class="hint">Synchronisé avec ta progression sur LCA One : une fiche marquée terminée là-bas passe en vert ici. Clique sur une fiche pour l'ouvrir.</p>
+      </section>
+      <section class="panel">
+        <div class="lhead"><h2>Articles</h2><span class="label num" id="lcaAN"></span></div>
+        <div class="tablewrap"><table class="lcatab"><thead><tr><th>Article</th><th>Date</th><th>Note</th><th></th></tr></thead><tbody id="lcaRows"></tbody></table></div>
+        <div class="addrow">
+          <label class="label" for="annSel" style="flex-basis:100%">Ajouter un article des annales LCA One</label>
+          <select id="annSel"></select><button class="btn primary" id="annAdd" type="button">Ajouter</button>
+        </div>
+        <form class="addrow" id="lcaForm"><input type="text" id="lcaNew" placeholder="Autre article (nom ou titre)" required><button class="btn" type="submit">Ajouter</button></form>
+        <p class="hint">Note : écris-la comme tu veux (14/20, 72, 72 %). Un article compte comme fait dès qu'il a une date.</p>
+      </section>
+    </div>
+  </section>
+
+  <div class="main" id="mainGrid">
+    <section class="panel">
+      <div class="calhead">
+        <button class="btn ghost" id="prev" aria-label="Mois précédent">←</button>
+        <h2 id="month"></h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn" id="todayBtn">Aujourd'hui</button>
+          <button class="btn ghost" id="next" aria-label="Mois suivant">→</button>
+        </div>
+      </div>
+      <div class="grid" id="dows"></div>
+      <div class="grid" id="cal"></div>
+      <p class="hint" id="calHint">Glisse un item sur un jour, ou touche-le puis touche le jour. Coche la case pour le marquer fait : il compte comme révisé dans toutes les matières où il apparaît.</p>
+    </section>
+
+    <aside class="lists">
+      <section class="panel k-todo">
+        <div class="lhead"><h2 class="st-todo">À faire</h2><span class="label num" id="nTodo">0</span></div>
+        <div class="remain" id="remain" hidden></div>
+        <div class="chips" id="todo"></div>
+      </section>
+      <section class="panel k-mid">
+        <div class="lhead"><h2 class="st-mid">En cours <span class="label" id="midSub">1 à 2 révisions</span></h2><span class="label num" id="nMid">0</span></div>
+        <div class="chips" id="mid"></div>
+      </section>
+      <section class="panel k-done">
+        <div class="lhead"><h2 class="st-done">Faits <span class="label" id="doneSub">3 révisions et +</span></h2><span class="label num" id="nDone">0</span></div>
+        <div class="chips" id="done"></div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="panel" id="tableSec">
+    <div class="thead">
+      <div><h2 id="tableTitle">Tableau par matière</h2><span class="saved" id="saved"></span></div>
+      <div class="tools">
+        <label class="btn" for="file" tabindex="0" style="cursor:pointer">Importer mon Excel</label>
+        <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+        <button class="btn" id="export">Exporter en .xlsx</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Item</th><th>Intitulé</th><th>Matières</th><th id="thViews">Fois vu</th><th id="thLast">Dernière révision</th><th>Prochaine prévue</th><th>Statut</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <form class="addrow" id="addForm">
+      <input type="text" id="newItem" placeholder="N° item" inputmode="numeric">
+      <input type="text" id="newName" placeholder="Intitulé" required>
+      <input type="text" id="newSubj" placeholder="Matière(s), séparées par des virgules">
+      <button class="btn primary" type="submit">Ajouter</button>
+    </form>
+    <p class="hint">Import : chaque onglet du fichier est une matière (son nom devient celui de la matière) ; l'onglet « Externat » est ignoré. Un item présent dans plusieurs onglets, repéré par son numéro ou à défaut par son intitulé, devient un seul item lié. Pour lier un item à la main, écris plusieurs matières séparées par des virgules dans la colonne Matières.</p>
+  </section>
+</div>
+
+<div class="picker" id="picker" hidden>
+  <div class="panel dayp">
+    <div class="lhead"><h2 id="pickTitle" style="text-transform:capitalize">Jour</h2><button class="btn ghost" id="pickClose">Fermer</button></div>
+    <div class="label">Prévu ce jour · coche ce que tu as fait</div>
+    <div class="dlist" id="dayList"></div>
+    <div class="drow" id="reportRow"><label class="label" for="reportDate">Reporter les non faits au</label><input type="date" id="reportDate"><button class="btn" id="reportBtn" type="button">Reporter</button></div>
+    <div class="dsec label"><label for="addSubj">Ajouter une matière</label></div>
+    <select id="addSubj"></select>
+    <div class="dlist" id="addList"></div>
+    <div class="drow" style="justify-content:flex-end"><button class="btn" id="checkAll" type="button">Tout cocher</button><button class="btn primary" id="addSel" type="button">Ajouter la sélection</button></div>
+  </div>
+</div>
+<div class="picker" id="scoreDlg" hidden>
+  <form class="panel scoreform" id="scoreForm">
+    <div class="lhead"><h2 id="scoreTitle">Score de la série</h2></div>
+    <label class="label" for="scoreIn">Ton score : 14/20, 18/25 ou 72 %</label>
+    <input type="text" id="scoreIn" inputmode="decimal" autocomplete="off" placeholder="ex. 14/20">
+    <div class="row"><button type="button" class="btn" id="scoreSkip">Sans score</button><button type="submit" class="btn primary">Enregistrer</button></div>
+  </form>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const PALETTE=["#2747c9","#d1495b","#1f8a5b","#c27c0e","#7b3fb8","#0f8b9c","#b5487a","#5a6b1f","#c4502a","#3f6fb0"];
+const SKIP_SHEETS=["externat"];
+let state={courses:[],sessions:[],lca:[]};
+let LCA=null;try{LCA=JSON.parse(localStorage.getItem("carnet-lca")||"null")}catch(e){}
+let db=null, ref=null, ready=false, saveTimer=null, armed=null, pickDate=null, filter="all", exam="all";
+const EXAMS=[
+  {id:"s1",name:"Semestre 1",subjects:["neurochirurgie","neurologie","endocrinologie","nutrition","gynecologie"]},
+  {id:"s2",name:"Semestre 2",subjects:["sante publique","pneumologie","pediatrie","gastro","pilly ( mal infectieuse )"]},
+  {id:"m3",name:"Med 3",subjects:["cardiologie","orthopedie","rhumatologie","nephrologie","urologie"]}
+];
+try{exam=localStorage.getItem("carnet-exam")||"all"}catch(e){}
+let mode="cours", scoreFor=null;
+try{mode=localStorage.getItem("carnet-mode")||"cours"}catch(e){}
+if(location.hash==="#qcm")mode="qcm";
+const typeOf=s=>s.type||"cours";
+let H=null;try{H=JSON.parse(localStorage.getItem("carnet-hypo")||"null")}catch(e){}
+const HMAP={"cardiologie":["Cardiologie et Médecine vasculaire"],"endocrinologie":["Endocrinologie-Diabète-Nutrition"],"nutrition":["Endocrinologie-Diabète-Nutrition"],"gynecologie":["Gynécologie et obstétrique"],"gastro":["Hépato-gastro-entérologie (HGE) et chirurgie digestive"],"chir dig":["Hépato-gastro-entérologie (HGE) et chirurgie digestive"],"pilly ( mal infectieuse )":["Infectiologie"],"nephrologie":["Néphrologie"],"neurologie":["Neurologie et neurochirurgie"],"neurochirurgie":["Neurologie et neurochirurgie"],"orthopedie":["Orthopédie"],"pediatrie":["Pédiatrie"],"pneumologie":["Pneumologie et allergologie"],"rhumatologie":["Rhumatologie"],"sante publique":["Santé publique/médecine du travail et légale"],"urologie":["Urologie"]};
+/* résultats Hypocampus d'un item : tous les blocs, ou seulement ceux qui correspondent à la matière m */
+function hypoOf(c,m){
+  if(!H||!H.items)return null;const blocks=m?HMAP[norm(m)]:null;
+  const r={a:0,t:0,c:0,i:0,parts:[]};
+  for(const n of new Set(String(c.item||"").match(/\d+/g)||[]))for(const e of H.items[n]||[]){
+    const b=H.B[e[0]];if(blocks&&!blocks.includes(b))continue;
+    r.a+=e[1];r.t+=e[2];r.c+=e[3];r.i+=e[4];r.parts.push(b+" "+e[1]+"/"+e[2]);}
+  return r.t?r:null;
+}
+const hpct=h=>h&&h.c+h.i>0?Math.round(h.c/(h.c+h.i)*100):null;
+function hypoView(c,m){return (m&&hypoOf(c,m))||hypoOf(c)}
+let view=new Date(); view.setDate(1);
+try{filter=localStorage.getItem("carnet-filtre")||"all"}catch(e){}
+
+const uid=()=>Math.random().toString(36).slice(2,10);
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const todayIso=iso(new Date());
+const fmt=s=>{if(!s)return"—";const[y,m,d]=s.split("-");return d+"/"+m+"/"+y.slice(2)};
+const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[’']/g,"'").replace(/\s+/g," ").trim();
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function itemKey(it){const n=String(it||"").match(/\d+/g);return n?n.join(","):""}
+function firstNum(it){const n=String(it||"").match(/\d+/);return n?+n[0]:99999}
+
+/* une couleur stable par matière, dans l'ordre d'apparition */
+function subjects(){const s=[];for(const c of state.courses)for(const m of c.subjects)if(!s.includes(m))s.push(m);return s.sort((a,b)=>a.localeCompare(b,"fr"))}
+function examOf(id){return EXAMS.find(e=>e.id===id)}
+function subjInExam(s,id=exam){const e=examOf(id);return !e||e.subjects.includes(norm(s))}
+function inExam(c,id=exam){const e=examOf(id);return !e||c.subjects.some(s=>e.subjects.includes(norm(s)))}
+function colorOf(subj){const s=subjects();const i=s.indexOf(subj);return i<0?"var(--muted)":PALETTE[i%PALETTE.length]}
+
+function canon(s){s=String(s).trim();for(const c of state.courses)for(const m of c.subjects||[])if(norm(m)===norm(s))return m;return s}
+function dedupe(list){const out=[];for(const s of list)if(!out.some(o=>norm(o)===norm(s)))out.push(s);return out}
+function migrate(){
+  if(!Array.isArray(state.lca))state.lca=[];
+  for(const c of state.courses){
+    if(!Array.isArray(c.subjects))c.subjects=c.subject?[c.subject]:[];
+    c.subjects=dedupe(c.subjects);
+    delete c.subject;
+    if(c.item==null){const m=String(c.name).match(/^\s*items?\s*([\d\s,et]+?)\s*[-–:]\s*(.+)$/i);if(m){c.item=m[1].replace(/\s*et\s*/g,", ").trim();c.name=m[2].trim()}else c.item=""}
+    c.base=c.base||0;
+  }
+}
+function stats(c,m=mode){
+  const ss=state.sessions.filter(s=>s.courseId===c.id&&typeOf(s)===m);
+  const doneS=ss.filter(s=>s.done).sort((a,b)=>a.date.localeCompare(b.date));
+  const next=ss.filter(s=>!s.done).map(s=>s.date).sort();
+  const sc=doneS.filter(s=>typeof s.score==="number");
+  const views=((m==="qcm"?c.qbase:c.base)||0)+doneS.length,h=hypoOf(c);
+  let st=status(views);if(m==="qcm"&&h)st=h.a>=h.t?"done":(h.a>0||views>0)?"mid":"todo";
+  return{st,h,views,last:doneS.length?doneS[doneS.length-1].date:null,next:next[0]||null,
+    lastScore:sc.length?sc[sc.length-1].score:null,avg:sc.length?Math.round(sc.reduce((a,s)=>a+s.score,0)/sc.length):null};
+}
+const scoreCls=p=>p>=75?"good":p>=50?"ok":"low";
+function parseScore(v){v=String(v).replace(",",".").trim();if(!v)return null;
+  const f=v.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);if(f){const a=+f[1],b=+f[2];return b>0?Math.max(0,Math.min(100,Math.round(a/b*100))):null}
+  const n=parseFloat(v);return isNaN(n)?null:Math.max(0,Math.min(100,Math.round(n)))}
+function scoreBadge(x,m){
+  const hv=hypoView(x.c,m);
+  if(mode==="qcm"){const p=hpct(hv);
+    const hb=hv?`<span class="score ${p==null?"none":scoreCls(p)}" title="Hypocampus : ${hv.a} questions faites sur ${hv.t} (${esc(hv.parts.join(", "))})">${hv.a}/${hv.t}${p!=null?" · "+p+"%":""}</span>`:"";
+    return hb+(x.lastScore!=null?`<span class="score ${scoreCls(x.lastScore)}" title="Ton dernier score noté · moyenne ${x.avg} %">${x.lastScore}%</span>`:"");}
+  if(hv&&hv.a){const p=hpct(hv);return `<span class="score ${p==null?"none":scoreCls(p)}" title="Hypocampus : ${hv.a}/${hv.t} questions">QCM ${hv.a}/${hv.t}</span>`}
+  const q=stats(x.c,"qcm");return q.avg!=null?`<span class="score ${scoreCls(q.avg)}" title="Moyenne aux QCM">QCM ${q.avg}%</span>`:"";
+}
+function qcmCell(x,m){
+  const hv=hypoView(x.c,m),p=hpct(hv);
+  const hs=hv?`<div><span class="score ${p==null?"none":scoreCls(p)}">${hv.a}/${hv.t} questions${p!=null?" · "+p+" % justes":""}</span></div>`:'<div class="saved">pas sur Hypocampus</div>';
+  return hs+qcmOwn(x);
+}
+function qcmOwn(x){
+  if(x.lastScore!=null)return `<div class="saved">Tes séries : <span class="score ${scoreCls(x.lastScore)}">${x.lastScore}%</span> moy. ${x.avg}% · ${fmt(x.last)}</div>`;
+  return x.views?`<div class="saved">Tes séries : ${x.last?fmt(x.last)+" · ":""}sans score</div>`:"";
+}
+function openScore(id){
+  const s=state.sessions.find(s=>s.id===id);if(!s)return;const c=state.courses.find(c=>c.id===s.courseId);
+  scoreFor=id;$("scoreTitle").textContent=(c?label(c):"Série")+" · "+fmt(s.date);
+  $("scoreIn").value=typeof s.score==="number"?s.score+" %":"";$("scoreDlg").hidden=false;setTimeout(()=>$("scoreIn").focus(),30);
+}
+const DONE_AT=3;
+const status=v=>v>=DONE_AT?"done":v>0?"mid":"todo";
+const label=c=>(c.item?"Item "+c.item+" · ":"")+c.name;
+
+/* ---------- persistance ---------- */
+function save(){
+  try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}
+  if(!ref){$("saved").textContent=" · enregistré sur cet appareil";return}
+  clearTimeout(saveTimer);$("saved").textContent=" · enregistrement…";
+  saveTimer=setTimeout(async()=>{
+    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,updatedAt:new Date().toISOString()});$("saved").textContent=" · enregistré"}
+    catch(e){$("saved").textContent=" · échec de l'enregistrement, réessaie"}
+  },500);
+}
+function commit(){render();if(!$("picker").hidden)renderDay();save()}
+
+/* ---------- rendu ---------- */
+function grouped(list){
+  /* renvoie [[matière, [x...]]] ; un item lié apparaît dans chacune de ses matières */
+  const subs=subjects();const out=[];
+  for(const m of subs){if(filter!=="all"&&filter!==m)continue;if(!subjInExam(m))continue;const xs=list.filter(x=>x.c.subjects.includes(m));if(xs.length)out.push([m,xs])}
+  const none=list.filter(x=>!x.c.subjects.length);
+  if(none.length&&filter==="all"&&exam==="all")out.push(["Sans matière",none]);
+  return out;
+}
+function render(){
+  const L=mode==="lca";
+  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L);$("lcaView").hidden=!L;
+  if(L){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;renderLCA();return}
+  $("lNext").textContent="Prévues à venir";
+  const all=state.courses.map(c=>({c,...stats(c)}));
+  if(exam!=="all"&&!examOf(exam))exam="all";
+  $("exams").innerHTML=[`<button class="ebtn${exam==="all"?" on":""}" data-exam="all">Tous les examens<small>${all.filter(x=>x.st!=="done").length} items restants</small></button>`]
+    .concat(EXAMS.map(e=>{const xs=all.filter(x=>inExam(x.c,e.id));const r=xs.filter(x=>x.st!=="done").length;
+      return `<button class="ebtn${exam===e.id?" on":""}" data-exam="${e.id}" title="${esc(e.subjects.join(", "))}">${esc(e.name)}<small>${r} restants sur ${xs.length}</small></button>`})).join("");
+  const cs=all.filter(x=>inExam(x.c)).sort((a,b)=>firstNum(a.c.item)-firstNum(b.c.item)||a.c.name.localeCompare(b.c.name,"fr"));
+  const seen=cs.filter(x=>x.st==="done"), started=cs.filter(x=>x.st==="mid");
+  $("sSeen").textContent=seen.length;$("sTotal").textContent=cs.length;
+  $("barMid").style.width=(cs.length?started.length/cs.length*100:0)+"%";
+  $("sRev").textContent=cs.reduce((a,x)=>a+x.views,0);
+  $("sNext").textContent=state.sessions.filter(s=>!s.done&&s.date>=todayIso&&typeOf(s)===mode&&cs.some(x=>x.c.id===s.courseId)).length;
+  const Q=mode==="qcm";
+  document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});
+  $("lSeen").textContent=Q?"Items faits (3 séries de QCM)":"Items terminés (3 révisions)";
+  $("lRev").textContent=Q?"Questions Hypocampus faites":"Révisions faites";
+  if(Q&&H){const bs=new Set(subjects().filter(m=>subjInExam(m)).flatMap(m=>HMAP[norm(m)]||[]));let a=0,t=0;for(const b of bs){const v=H.blocks[b];if(v){a+=v[0];t+=v[1]}}$("sRev").innerHTML=`${a}<small>/${t}</small>`}
+  $("hypoUpd").textContent=Q&&H&&H.updatedAt?"Hypocampus mis à jour le "+new Date(H.updatedAt).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+  $("statAvg").hidden=!Q;
+  if(Q){const sc=state.sessions.filter(s=>typeOf(s)==="qcm"&&s.done&&typeof s.score==="number"&&cs.some(x=>x.c.id===s.courseId));$("sAvg").textContent=sc.length?Math.round(sc.reduce((a,s)=>a+s.score,0)/sc.length)+" %":"—"}
+  $("midSub").textContent=Q?"1 à 2 séries":"1 à 2 révisions";
+  $("doneSub").textContent=Q?"3 séries et +":"3 révisions et +";
+  $("tableTitle").textContent=Q?"QCM par matière":"Tableau par matière";
+  $("thViews").textContent=Q?"Séries faites":"Fois vu";
+  $("thLast").textContent=Q?"Score (dernier · moyenne)":"Dernière révision";
+  $("calHint").textContent=Q?"Place une série de QCM sur un jour. Quand tu la coches, note ton score : chaque item affiche son dernier score, en vert à 75 % et plus, en orange de 50 à 74 %, en rouge en dessous (à retravailler).":"Clique sur un jour pour y ajouter une matière entière ou quelques items (tu peux aussi glisser un item depuis les listes). En fin de journée, coche ce que tu as fait : la date de dernière révision se met à jour. Ce que tu n'as pas coché reste en prochaine révision prévue, en rouge s'il est en retard, et tu peux le reporter.";
+  $("bar").style.width=(cs.length?seen.length/cs.length*100:0)+"%";
+
+  const subs=subjects().filter(m=>subjInExam(m));
+  if(filter!=="all"&&!subs.includes(filter))filter="all";
+  $("filters").innerHTML=subs.length?[`<button class="fbtn${filter==="all"?" on":""}" data-filter="all">Toutes les matières</button>`]
+    .concat(subs.map(m=>{const xs=cs.filter(x=>x.c.subjects.includes(m));const v=xs.filter(x=>x.st==="done").length;
+      return `<button class="fbtn${filter===m?" on":""}" data-filter="${esc(m)}"><span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)} <small>${v}/${xs.length}</small></button>`})).join(""):"";
+
+  const todo=cs.filter(x=>x.st==="todo"), mid=started, done=seen;
+  const gt=grouped(todo), gm=grouped(mid), gd=grouped(done);
+  $("nTodo").textContent=new Set(gt.flatMap(g=>g[1].map(x=>x.c.id))).size;
+  const ex=examOf(exam);
+  $("remain").hidden=!ex;
+  if(ex){const sc=filter==="all"?cs:cs.filter(x=>x.c.subjects.includes(filter));const a=sc.filter(x=>x.st==="todo").length,b=sc.filter(x=>x.st==="mid").length;
+    $("remain").innerHTML=`${esc(ex.name)}${filter!=="all"?" · "+esc(filter):""} : il te reste <b>${a+b}</b> items, dont <b>${a}</b> pas commencés et <b>${b}</b> en cours.`}
+  $("nMid").textContent=new Set(gm.flatMap(g=>g[1].map(x=>x.c.id))).size;
+  $("mid").innerHTML=gm.length?gm.map(groupHtml).join(""):'<div class="empty">Aucun item commencé pour l\'instant.</div>';
+  $("nDone").textContent=new Set(gd.flatMap(g=>g[1].map(x=>x.c.id))).size;
+  $("todo").innerHTML=gt.length?gt.map(groupHtml).join(""):`<div class="empty">${cs.length?"Tous les items ont été commencés.":"Importe ton Excel pour remplir cette liste."}</div>`;
+  $("done").innerHTML=gd.length?gd.map(groupHtml).join(""):`<div class="empty">Un item arrive ici après sa 3e ${mode==="qcm"?"série de QCM":"révision"}.</div>`;
+  renderCal();renderTable(cs);
+  $("armed").hidden=!armed;
+  if(armed){const c=state.courses.find(c=>c.id===armed);$("armedName").textContent=c?label(c):""}
+}
+/* collèges rédacteurs qui correspondent à chaque matière (sigles de l'onglet Externat) */
+const REDMAP={"urologie":["CFEU"],"nephrologie":["CUEN"],"orthopedie":["CFCOT"],"cardiologie":["CNECardio","CEMV"],"rhumatologie":["COFER"],"gynecologie":["CNEGM","CEGO"],"nutrition":["CENutri"],"endocrinologie":["CEEDMM"],"neurologie":["CENeuro"],"neurochirurgie":["CENC"],"pneumologie":["CEP"],"pediatrie":["CNPU","CNHUCP"],"chir dig":["CCVD"],"gastro":["CDUHGE"],"sante publique":["CUESP"],"pilly ( mal infectieuse )":["CMIT"]};
+function isRedac(c,m){const r=REDMAP[norm(m)];if(!r||!c.redac)return true;return r.some(a=>c.redac.includes("("+a+")"))}
+let openG=new Set();try{openG=new Set(JSON.parse(localStorage.getItem("carnet-ouverts")||"[]"))}catch(e){}
+const isOpen=m=>openG.has(m)||(filter!=="all"&&filter===m);
+function groupHtml([m,xs]){
+  const o=isOpen(m);
+  return `<button type="button" class="grp${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><span class="chev">▶</span><span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<small>${xs.length}</small></button>`+(o?xs.map(x=>chip(x,m)).join(""):"");
+}
+function chip(x,m){
+  const others=x.c.subjects.filter(s=>s!==m);
+  const off=m&&!isRedac(x.c,m);
+  return `<button class="chip${armed===x.c.id?" sel":""}${off?" offr":""}"${off?` title="${esc(m)} n'est pas rédactrice de cet item"`:""} draggable="true" data-cid="${x.c.id}" style="--c:${colorOf(m||x.c.subjects[0])}">
+    <span class="it">${x.c.item?esc(x.c.item):"—"}</span>
+    <span class="nm"><b>${esc(x.c.name)}</b>${x.c.redac?`<em style="display:block">Rédacteurs : ${esc(x.c.redac)}</em>`:""}<em>${others.length?`<span class="link" title="Item lié">aussi en ${esc(others.join(", "))}</span> `:""}${x.next?(x.next<todayIso?`<span class="late-t">en retard (${fmt(x.next)})</span>`:"prévu le "+fmt(x.next)):""}</em></span>
+    ${scoreBadge(x,m)}${x.views?`<span class="count ${x.st}" title="Nombre de fois vu">×${x.views}</span>`:""}</button>`;
+}
+function renderCal(){
+  $("month").textContent=view.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const start=new Date(view);const off=(start.getDay()+6)%7;start.setDate(1-off);
+  let h="";
+  for(let i=0;i<42;i++){
+    const d=new Date(start);d.setDate(start.getDate()+i);const k=iso(d);
+    if(i===35&&d.getMonth()!==view.getMonth())break;
+    const ss=state.sessions.filter(s=>s.date===k&&typeOf(s)===mode);
+    h+=`<div class="day${d.getMonth()!==view.getMonth()?" out":""}${k===todayIso?" today":""}${armed?" armed":""}" data-date="${k}">
+      <div class="dn"><b>${d.getDate()}</b><button class="addday" data-add="${k}" aria-label="Ajouter un item le ${fmt(k)}">+</button></div>
+      ${ss.slice(0,4).map(s=>{const c=state.courses.find(c=>c.id===s.courseId);if(!c)return"";
+        return `<label class="sess${s.done?" done":k<todayIso?" late":""}" style="--c:${colorOf(c.subjects[0])}" title="${esc(label(c))} (${esc(c.subjects.join(", ")||"sans matière")})">
+          <input type="checkbox" data-toggle="${s.id}" ${s.done?"checked":""} aria-label="Marquer ${esc(c.name)} comme fait">
+          <span>${c.item?esc(c.item)+" · ":""}${esc(c.name)}</span>${mode==="qcm"&&s.done?`<button class="score ${typeof s.score==="number"?scoreCls(s.score):"none"}" data-score="${s.id}" aria-label="Modifier le score">${typeof s.score==="number"?s.score+"%":"score ?"}</button>`:""}<button class="x" data-rm="${s.id}" aria-label="Retirer">×</button></label>`}).join("")}
+      ${ss.length>4?`<button class="more" data-add="${k}">+${ss.length-4} autres · ${ss.filter(s=>s.done).length}/${ss.length} faits</button>`:""}
+    </div>`;
+  }
+  $("cal").innerHTML=h;
+}
+function row(x,m){
+  const others=x.c.subjects.filter(s=>s!==m);
+  const off=m&&!isRedac(x.c,m);
+  return `<tr data-cid="${x.c.id}"${off?` class="offr" title="${esc(m)} n'est pas rédactrice de cet item"`:""}>
+    <td class="itc"><input type="text" id="i-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="item" value="${esc(x.c.item||"")}" aria-label="Numéro d'item"></td>
+    <td><input type="text" id="n-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="name" value="${esc(x.c.name)}" aria-label="Intitulé"><div class="redac"><b>Rédacteurs :</b><input type="text" id="r-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="redac" value="${esc(x.c.redac||"")}" placeholder="collèges rédacteurs (LiSA)" aria-label="Collèges rédacteurs"></div></td>
+    <td><input type="text" id="s-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="subjects" value="${esc(x.c.subjects.join(", "))}" aria-label="Matières" title="${others.length?"Lié à : "+esc(others.join(", ")):""}"></td>
+    <td><span class="stepper"><button data-step="-1" aria-label="Retirer une révision">−</button><b class="num">${x.views}</b><button data-step="1" aria-label="Ajouter une révision">+</button></span></td>
+    <td class="num">${mode==="qcm"?qcmCell(x,m):fmt(x.last)}</td><td class="num">${x.next&&x.next<todayIso?`<span class="late-t">en retard · ${fmt(x.next)}</span>`:fmt(x.next)}</td>
+    <td>${{done:'<span class="pill ok">Fait</span>',mid:'<span class="pill mid">En cours</span>',todo:'<span class="pill todo">À faire</span>'}[x.st]}</td>
+    <td><button class="del" data-delc="${x.c.id}" aria-label="Supprimer l'item">×</button></td></tr>`;
+}
+function hypoBlockTxt(m){if(!H)return"";const bs=HMAP[norm(m)]||[];let a=0,t=0;for(const b of bs){const v=H.blocks[b];if(v){a+=v[0];t+=v[1]}}return t?` · Hypocampus ${a}/${t} questions`:""}
+function renderLCA(){
+  const F=(LCA&&LCA.fiches)||[],fd=F.filter(f=>f.done).length;
+  const arts=state.lca,done=arts.filter(a=>a.date);
+  const notes=done.map(a=>parseScore(a.note)).filter(v=>v!=null);
+  $("lSeen").textContent="Fiches LCA One faites";$("sSeen").textContent=fd;$("sTotal").textContent=F.length;
+  $("bar").style.width=(F.length?fd/F.length*100:0)+"%";$("barMid").style.width="0%";
+  $("lRev").textContent="Articles faits";$("sRev").textContent=done.length;
+  $("lNext").textContent="Fiches restantes";$("sNext").textContent=F.length-fd;
+  $("statAvg").hidden=false;$("sAvg").textContent=notes.length?Math.round(notes.reduce((a,b)=>a+b,0)/notes.length)+" %":"—";
+  $("hypoUpd").textContent=LCA&&LCA.updatedAt?"LCA One mis à jour le "+new Date(LCA.updatedAt).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+  $("lcaFN").textContent=fd+"/"+F.length;$("lcaAN").textContent=done.length+" faits";
+  const secs=[...new Set(F.map(f=>f.s))];
+  $("lcaFiches").innerHTML=F.length?secs.map(sc=>{const fs=F.filter(f=>f.s===sc),o=isOpen("LCA:"+sc);
+    return `<button type="button" class="grp${o?" open":""}" data-grp="${esc("LCA:"+sc)}" aria-expanded="${o}"><span class="chev">▶</span>${esc(sc)}<small>${fs.filter(f=>f.done).length}/${fs.length}</small></button>`+(o?fs.map(f=>`<a class="fiche${f.done?" ok":""}" href="${esc(f.url)}" target="_blank" rel="noopener"><span>${f.done?"✓":"○"}</span><span class="nm2">${esc(f.t)}</span>${f.done?'<span class="pill ok">Fait</span>':'<span class="pill todo">À faire</span>'}</a>`).join(""):"")}).join("")
+    :'<div class="empty">Les fiches LCA One apparaîtront ici après la première synchronisation.</div>';
+  const sorted=[...arts].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  $("lcaRows").innerHTML=sorted.length?sorted.map(a=>{const p=parseScore(a.note);return `<tr data-lid="${a.id}">
+    <td><input type="text" id="la-n-${a.id}" data-lf="name" value="${esc(a.name)}" aria-label="Article">${a.url?`<div class="saved"><a href="${esc(a.url)}" target="_blank" rel="noopener">Correction LCA One</a></div>`:""}</td>
+    <td><input type="date" id="la-d-${a.id}" data-lf="date" value="${esc(a.date||"")}" aria-label="Date"></td>
+    <td><input type="text" id="la-s-${a.id}" data-lf="note" value="${esc(a.note||"")}" placeholder="ex. 14/20" aria-label="Note" style="width:7em">${p!=null?` <span class="score ${scoreCls(p)}">${p}%</span>`:""}</td>
+    <td><button class="del" data-ldel="${a.id}" aria-label="Supprimer l'article">×</button></td></tr>`}).join("")
+    :'<tr><td colspan="4" class="empty" style="padding:14px">Aucun article pour l\'instant. Ajoute ceux que tu as faits ci-dessous.</td></tr>';
+  const used=new Set(arts.map(a=>a.url));const av=((LCA&&LCA.annales)||[]).filter(x=>!used.has(x.url));
+  $("annSel").innerHTML=av.length?av.map(x=>`<option value="${esc(x.url)}">${esc(x.n)}</option>`).join(""):'<option value="">Toutes les annales sont déjà ajoutées</option>';
+}
+function renderTable(cs){
+  if(!cs.length){$("rows").innerHTML=`<tr><td colspan="8" class="empty" style="padding:18px">Aucun item pour l'instant. Importe ton fichier Excel ou ajoute un item ci-dessous.</td></tr>`;return}
+  const g=grouped(cs);
+  $("rows").innerHTML=g.map(([m,xs])=>{const v=xs.filter(x=>x.st==="done").length,e=xs.filter(x=>x.st==="mid").length;
+    const o=isOpen(m);
+    return `<tr class="gh${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><td colspan="8"><span class="chev">▶</span> <span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<span class="num">${v} faits · ${e} en cours · ${xs.length} items${mode==="qcm"?hypoBlockTxt(m):""}</span></td></tr>`+(o?xs.map(x=>row(x,m)).join(""):"")}).join("");
+}
+
+/* ---------- actions ---------- */
+function place(courseId,date){state.sessions.push({id:uid(),courseId,date,done:false,type:mode});commit()}
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,3200)}
+
+document.addEventListener("click",e=>{
+  const t=e.target;
+  if(t.dataset.ldel){if(t.dataset.confirm){state.lca=state.lca.filter(a=>a.id!==t.dataset.ldel);commit()}else{t.dataset.confirm="1";t.textContent="Sûr ?";setTimeout(()=>{t.textContent="×";delete t.dataset.confirm},2500)}return}
+  if(t.id==="annAdd"){const u=$("annSel").value;const x=((LCA&&LCA.annales)||[]).find(a=>a.url===u);if(x){state.lca.push({id:uid(),name:x.n,url:x.url,date:todayIso,note:""});commit();toast(x.n+" ajouté, date du jour : modifie-la si besoin")}return}
+  const tb=t.closest(".tab");
+  if(tb){mode=tb.dataset.mode;armed=null;try{localStorage.setItem("carnet-mode",mode)}catch(e){}render();return}
+  if(t.dataset.score){e.preventDefault();openScore(t.dataset.score);return}
+  const gp=t.closest("[data-grp]");
+  if(gp&&!t.closest("input")){const m=gp.dataset.grp;if(isOpen(m)){openG.delete(m);if(filter===m)filter="all"}else openG.add(m);try{localStorage.setItem("carnet-ouverts",JSON.stringify([...openG]))}catch(e){}render();return}
+  const fb=t.closest(".fbtn");
+  const eb=t.closest(".ebtn");
+  if(eb){exam=eb.dataset.exam;filter="all";try{localStorage.setItem("carnet-exam",exam);localStorage.setItem("carnet-filtre","all")}catch(e){}render();return}
+  if(fb){filter=fb.dataset.filter;try{localStorage.setItem("carnet-filtre",filter)}catch(e){}render();return}
+  const ch=t.closest(".chip");
+  if(ch){armed=armed===ch.dataset.cid?null:ch.dataset.cid;render();return}
+  if(t.dataset.rm){e.preventDefault();state.sessions=state.sessions.filter(s=>s.id!==t.dataset.rm);commit();return}
+  if(t.dataset.add){openDay(t.dataset.add);return}
+  const day=t.closest(".day");
+  if(day&&armed&&!t.closest(".sess")){place(armed,day.dataset.date);armed=null;render();return}
+  if(day&&!t.closest(".sess")&&!t.closest("button")){openDay(day.dataset.date);return}
+  if(t.dataset.step){
+    const c=state.courses.find(c=>c.id===t.closest("tr").dataset.cid);
+    const k=mode==="qcm"?"qbase":"base";
+    if(+t.dataset.step>0)c[k]=(c[k]||0)+1;
+    else if((c[k]||0)>0)c[k]--;
+    else{const s=state.sessions.filter(s=>s.courseId===c.id&&s.done&&typeOf(s)===mode).sort((a,b)=>b.date.localeCompare(a.date))[0];if(s)s.done=false}
+    commit();return}
+  if(t.dataset.delc){
+    if(t.dataset.confirm){state.courses=state.courses.filter(c=>c.id!==t.dataset.delc);state.sessions=state.sessions.filter(s=>s.courseId!==t.dataset.delc);commit()}
+    else{t.dataset.confirm="1";t.textContent="Sûr ?";setTimeout(()=>{t.textContent="×";delete t.dataset.confirm},2500)}
+    return}
+});
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.dataset.lf){const a=state.lca.find(a=>a.id===t.closest("tr").dataset.lid);if(a){a[t.dataset.lf]=t.value.trim();commit()}return}
+  if(t.dataset.toggle){const s=state.sessions.find(s=>s.id===t.dataset.toggle);s.done=t.checked;if(!t.checked)delete s.score;commit();
+    if(t.checked&&typeOf(s)==="qcm"){openScore(s.id);return}
+    if(t.checked){const c=state.courses.find(c=>c.id===s.courseId);const v=stats(c).views;toast(`${label(c)} : vu ${v} fois${v===DONE_AT?" · terminé !":""}${c.subjects.length>1?" (en "+c.subjects.join(", ")+")":""}`)}}
+  if(t.dataset.f){const c=state.courses.find(c=>c.id===t.closest("tr").dataset.cid);
+    if(t.dataset.f==="subjects")c.subjects=dedupe(t.value.split(/[,;/]/).map(s=>s.trim()).filter(Boolean).map(canon));
+    else c[t.dataset.f]=t.value.trim();
+    commit()}
+});
+$("disarm").onclick=()=>{armed=null;render()};
+$("prev").onclick=()=>{view.setMonth(view.getMonth()-1);renderCal()};
+$("next").onclick=()=>{view.setMonth(view.getMonth()+1);renderCal()};
+$("todayBtn").onclick=()=>{view=new Date();view.setDate(1);renderCal()};
+$("pickClose").onclick=()=>$("picker").hidden=true;
+function closeScore(){$("scoreDlg").hidden=true;
+  const s=state.sessions.find(s=>s.id===scoreFor);scoreFor=null;if(!s)return;const c=state.courses.find(c=>c.id===s.courseId);if(!c)return;
+  const x=stats(c,"qcm");const p=s.score;
+  toast(`${label(c)} : série n°${x.views}${typeof p==="number"?" · "+p+" %"+(p<50?" · à retravailler":""):""}${x.views===DONE_AT?" · 3 séries faites !":""}`)}
+$("scoreForm").onsubmit=e=>{e.preventDefault();const s=state.sessions.find(s=>s.id===scoreFor);const p=parseScore($("scoreIn").value);
+  if($("scoreIn").value.trim()&&p==null){toast("Score non reconnu : écris par exemple 14/20 ou 72");return}
+  if(s){if(p==null)delete s.score;else s.score=p;commit()}closeScore()};
+$("scoreSkip").onclick=()=>{const s=state.sessions.find(s=>s.id===scoreFor);if(s){delete s.score;commit()}closeScore()};
+$("scoreDlg").onclick=e=>{if(e.target.id==="scoreDlg")closeScore()};
+$("picker").onclick=e=>{if(e.target.id==="picker")$("picker").hidden=true};
+let dayDate=null;
+function openDay(date){
+  dayDate=date;const subs=subjects().filter(m=>subjInExam(m));const sel=$("addSubj");const prev=sel.value;
+  sel.innerHTML=subs.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join("");
+  if(subs.includes(prev))sel.value=prev;else if(filter!=="all"&&subs.includes(filter))sel.value=filter;
+  const t=new Date(date+"T12:00");t.setDate(t.getDate()+1);$("reportDate").value=iso(t);
+  renderDay();$("picker").hidden=false;
+}
+function renderDay(){
+  if(!dayDate)return;
+  $("pickTitle").textContent=new Date(dayDate+"T12:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})+(mode==="qcm"?" · QCM":"");
+  const ss=state.sessions.filter(s=>s.date===dayDate&&typeOf(s)===mode);
+  $("dayList").innerHTML=ss.length?ss.map(s=>{const c=state.courses.find(c=>c.id===s.courseId);if(!c)return"";
+    return `<label class="ditem${s.done?" done":dayDate<todayIso?" late":""}" style="--c:${colorOf(c.subjects[0])}"><input type="checkbox" data-toggle="${s.id}" ${s.done?"checked":""} aria-label="Fait"><span class="it">${esc(c.item||"—")}</span><span class="nm2">${esc(c.name)}</span>${mode==="qcm"&&s.done?`<button type="button" class="score ${typeof s.score==="number"?scoreCls(s.score):"none"}" data-score="${s.id}">${typeof s.score==="number"?s.score+"%":"score ?"}</button>`:""}<button type="button" class="x" data-rm="${s.id}" aria-label="Retirer">×</button></label>`}).join("")
+    :'<div class="empty">Rien de prévu ce jour. Ajoute une matière ci-dessous.</div>';
+  const undone=ss.filter(s=>!s.done).length;$("reportRow").hidden=!undone;
+  $("reportBtn").textContent=`Reporter ${undone} item${undone>1?"s":""}`;
+  const m=$("addSubj").value;const planned=new Set(ss.map(s=>s.courseId));
+  const xs=state.courses.filter(c=>c.subjects.includes(m)&&!planned.has(c.id)).map(c=>({c,...stats(c)})).sort((a,b)=>a.views-b.views||firstNum(a.c.item)-firstNum(b.c.item));
+  $("addList").innerHTML=!m?'<div class="empty">Importe d\'abord tes matières.</div>':xs.length?xs.map(x=>`<label class="ditem" style="--c:${colorOf(m)}"><input type="checkbox" class="addck" value="${x.c.id}"><span class="it">${esc(x.c.item||"—")}</span><span class="nm2">${esc(x.c.name)}</span>${x.views?`<span class="count ${x.st}">×${x.views}</span>`:""}</label>`).join("")
+    :'<div class="empty">Tous les items de cette matière sont déjà prévus ce jour.</div>';
+}
+$("addSubj").onchange=renderDay;
+$("checkAll").onclick=()=>{const cks=[...document.querySelectorAll(".addck")];const all=cks.length&&cks.every(c=>c.checked);cks.forEach(c=>c.checked=!all)};
+$("addSel").onclick=()=>{const ids=[...document.querySelectorAll(".addck:checked")].map(c=>c.value);
+  if(!ids.length){toast("Coche au moins un item, ou « Tout cocher » pour la matière entière");return}
+  for(const id of ids)state.sessions.push({id:uid(),courseId:id,date:dayDate,done:false,type:mode});
+  commit();toast(`${ids.length} item${ids.length>1?"s":""} ajouté${ids.length>1?"s":""} au ${fmt(dayDate)}`)};
+$("reportBtn").onclick=()=>{const to=$("reportDate").value;if(!to)return;
+  const ss=state.sessions.filter(s=>s.date===dayDate&&typeOf(s)===mode&&!s.done);ss.forEach(s=>s.date=to);
+  commit();toast(`${ss.length} item${ss.length>1?"s":""} reporté${ss.length>1?"s":""} au ${fmt(to)}`)};
+document.addEventListener("dragstart",e=>{const ch=e.target.closest&&e.target.closest(".chip");if(ch)e.dataTransfer.setData("text/plain",ch.dataset.cid)});
+$("cal").addEventListener("dragover",e=>{const d=e.target.closest(".day");if(d){e.preventDefault();d.classList.add("drop")}});
+$("cal").addEventListener("dragleave",e=>{const d=e.target.closest(".day");if(d)d.classList.remove("drop")});
+$("cal").addEventListener("drop",e=>{const d=e.target.closest(".day");if(!d)return;e.preventDefault();d.classList.remove("drop");const id=e.dataTransfer.getData("text/plain");if(state.courses.some(c=>c.id===id))place(id,d.dataset.date)});
+
+$("lcaForm").onsubmit=e=>{e.preventDefault();const n=$("lcaNew").value.trim();if(!n)return;state.lca.push({id:uid(),name:n,url:"",date:todayIso,note:""});$("lcaNew").value="";commit()};
+$("addForm").onsubmit=e=>{e.preventDefault();const n=$("newName").value.trim();if(!n)return;
+  const subs=dedupe($("newSubj").value.split(/[,;/]/).map(s=>s.trim()).filter(Boolean).map(canon));
+  const item=$("newItem").value.trim();
+  const ex=item&&state.courses.find(c=>itemKey(c.item)===itemKey(item));
+  if(ex){for(const s of subs)if(!ex.subjects.includes(s))ex.subjects.push(s);toast(`Item ${item} existait déjà : matière ajoutée et lien créé`)}
+  else state.courses.push({id:uid(),item,name:n,subjects:subs,base:0});
+  ["newItem","newName","newSubj"].forEach(id=>$(id).value="");commit()};
+
+/* ---------- Excel : un onglet = une matière ---------- */
+function readSheet(ws){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""}).filter(r=>r.some(v=>String(v).trim()));
+  if(!rows.length)return[];
+  /* cherche la ligne de titres dans les 5 premières lignes */
+  let hi=0,head=null;
+  for(let i=0;i<Math.min(5,rows.length);i++){const h=rows[i].map(norm);if(h.some(x=>/item|cours|chapitre|intitule|titre|nom|lecon/.test(x))){hi=i;head=h;break}}
+  let iI=-1,iN=-1,iV=-1;
+  if(head){
+    iI=head.findIndex(h=>/^(n°|no|num|numero)?\s*items?\b|^n°$|^numero$|^num$/.test(h)&&!/intitule/.test(h));
+    iN=head.findIndex((h,i)=>i!==iI&&/cours|chapitre|intitule|titre|nom|lecon|item/.test(h));
+    iV=head.findIndex(h=>/\bvu\b|fois|^nb|nombre|revision|tour|passage/.test(h));
+  }
+  const body=head?rows.slice(hi+1):rows;
+  if(iN<0){ /* pas de titres : la colonne la plus « textuelle » est l'intitulé, une colonne de nombres courts est l'item */
+    const w=body[0]||[];iN=w.findIndex(v=>String(v).trim().length>6&&isNaN(v));if(iN<0)iN=0;
+    if(iI<0)iI=w.findIndex((v,i)=>i!==iN&&/^\s*\d{1,3}([\s,]+\d{1,3})*\s*$/.test(String(v)));
+  }
+  const out=[];
+  for(const r of body){
+    let name=String(r[iN]??"").trim();if(!name)continue;
+    let item=iI>=0?String(r[iI]??"").trim():"";
+    const m=name.match(/^\s*(?:items?|it\.?)?\s*([\d]{1,3}(?:\s*(?:,|et|-|\/)\s*\d{1,3})*)\s*[-–:.)]\s*(.+)$/i);
+    if(m){if(!item)item=m[1];name=m[2].trim()}
+    item=item.replace(/^items?\s*/i,"").replace(/\s*(et|\/)\s*/g,", ").trim();
+    if(/^item/i.test(norm(name))&&!item)continue;
+    const v=iV>=0?parseInt(r[iV],10):NaN;
+    out.push({item,name,views:isNaN(v)?null:Math.max(0,v)});
+  }
+  return out;
+}
+$("file").onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  if(!window.XLSX){toast("La lecture Excel n'a pas pu se charger. Recharge la page.");return}
+  try{
+    const wb=XLSX.read(await f.arrayBuffer());
+    const sheets=wb.SheetNames.filter(n=>!SKIP_SHEETS.includes(norm(n)));
+    const skipped=wb.SheetNames.length-sheets.length;
+    let added=0,linked=0,updated=0;const seenIds=new Set();
+    for(const sn of sheets){
+      const subj=canon(sn);
+      for(const r of readSheet(wb.Sheets[sn])){
+        const k=itemKey(r.item);
+        let c=(k&&state.courses.find(c=>itemKey(c.item)===k))||state.courses.find(c=>norm(c.name)===norm(r.name));
+        if(c){
+          if(!c.item&&r.item)c.item=r.item;
+          if(!c.subjects.includes(subj)){c.subjects.push(subj);if(seenIds.has(c.id))linked++;else updated++}
+          else if(!seenIds.has(c.id))updated++;
+        }else{c={id:uid(),item:r.item,name:r.name,subjects:[subj],base:0};state.courses.push(c);added++}
+        if(r.views!=null){const done=state.sessions.filter(s=>s.courseId===c.id&&s.done).length;
+          const b=Math.max(0,r.views-done);c.base=seenIds.has(c.id)?Math.max(c.base||0,b):b}
+        seenIds.add(c.id);
+      }
+    }
+    /* l'onglet Externat donne le collège rédacteur de chaque item (pas les relecteurs) */
+    const exn=wb.SheetNames.find(n=>norm(n)==="externat");
+    if(exn){const rows=XLSX.utils.sheet_to_json(wb.Sheets[exn],{header:1,defval:""});const h=(rows[0]||[]).map(norm);
+      const iI=h.findIndex(x=>/item/.test(x)),iR=h.findIndex(x=>/redact/.test(x)&&!/relect/.test(x));
+      if(iI>=0&&iR>=0){const red={};for(const r of rows.slice(1)){const n=parseInt(r[iI],10);if(isNaN(n)||red[n])continue;red[n]=String(r[iR]).split("•").map(s=>s.trim()).filter(Boolean)}
+        for(const c of state.courses){const cols=[];for(const n of (String(c.item).match(/\d+/g)||[]))for(const x of red[n]||[])if(!cols.includes(x))cols.push(x);if(cols.length)c.redac=cols.join(" · ")}}}
+    commit();
+    toast(`${sheets.length} matières importées${skipped?" (Externat ignoré)":""} · ${added} items ajoutés · ${linked} items liés entre matières`);
+  }catch(err){toast("Impossible de lire ce fichier. Vérifie que c'est un .xlsx ou .csv.")}
+  e.target.value="";
+};
+$("export").onclick=async()=>{
+  if(!window.XLSX){toast("L'export Excel n'a pas pu se charger.");return}
+  const wb=XLSX.utils.book_new();
+  const cs=state.courses.map(c=>({c,...stats(c,"cours"),q:stats(c,"qcm")})).sort((a,b)=>firstNum(a.c.item)-firstNum(b.c.item));
+  const hdr=["Item","Intitulé","Fois vu","Dernière révision","Prochaine prévue","Statut","Aussi en","Séries QCM","Dernier score QCM (%)","Moyenne QCM (%)"];
+  for(const m of subjects()){
+    const data=[hdr];
+    for(const x of cs.filter(x=>x.c.subjects.includes(m)))data.push([x.c.item,x.c.name,x.views,x.last||"",x.next||"",{done:"Fait",mid:"En cours",todo:"À faire"}[x.st],x.c.subjects.filter(s=>s!==m).join(", "),x.q.views,x.q.lastScore??"",x.q.avg??""]);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data),m.slice(0,31).replace(/[\\\/?*\[\]:]/g," "));
+  }
+  const none=cs.filter(x=>!x.c.subjects.length);
+  if(none.length)XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([hdr,...none.map(x=>[x.c.item,x.c.name,x.views,x.last||"",x.next||"",{done:"Fait",mid:"En cours",todo:"À faire"}[x.st],""])]),"Sans matière");
+  const plan=[["Date","Type","Item","Intitulé","Matières","Fait","Score (%)"]];
+  for(const s of [...state.sessions].sort((a,b)=>a.date.localeCompare(b.date))){const c=state.courses.find(c=>c.id===s.courseId);if(c)plan.push([s.date,typeOf(s)==="qcm"?"QCM":"Cours",c.item,c.name,c.subjects.join(", "),s.done?"Oui":"Non",s.score??""])}
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(plan),"Planning");
+  if(!wb.SheetNames.length){toast("Rien à exporter pour l'instant.");return}
+  const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+  try{const dl=await window.claude?.use?.("downloads");if(!dl){toast("Le téléchargement n'est pas disponible ici.");return}
+    await dl.save({filename:"revisions.xlsx",data:new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"})})}
+  catch(e){}
+};
+
+/* ---------- démarrage ---------- */
+$("todayLbl").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+$("dows").innerHTML=["L","M","M","J","V","S","D"].map(d=>`<div class="dow">${d}</div>`).join("");
+try{const raw=localStorage.getItem("carnet-revisions");if(raw)state=JSON.parse(raw)}catch(e){}
+migrate();render();
+(async()=>{
+  try{db=await window.claude?.use?.("db")}catch(e){db=null}
+  if(!db){$("saved").textContent=" · enregistré sur cet appareil";return}
+  db.doc("planner/lca").onSnapshot(sn=>{if(sn.exists){LCA=JSON.parse(JSON.stringify(sn.data()));try{localStorage.setItem("carnet-lca",JSON.stringify(LCA))}catch(e){}render()}},()=>{});
+  db.doc("planner/hypo").onSnapshot(sn=>{if(sn.exists){H=JSON.parse(JSON.stringify(sn.data()));try{localStorage.setItem("carnet-hypo",JSON.stringify(H))}catch(e){}render()}},()=>{});
+  ref=db.doc("planner/state");
+  ref.onSnapshot(snap=>{
+    if(snap.metadata.hasPendingWrites)return;
+    if(snap.exists){const d=snap.data();state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[]))};migrate();render();$("saved").textContent=" · synchronisé"}
+    else if(!ready&&state.courses.length){save()}
+    ready=true;
+  },()=>{$("saved").textContent=" · hors ligne, enregistré sur cet appareil";ref=null});
+})();
+})();
+</script>
+
+</body></html>
