@@ -1,33 +1,28 @@
-<!doctype html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Carnet de révisions · Med 4</title>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Carnet de révisions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-/* Mise en page Med 4 (auroremedecine) : en-tête avec surligneur, onglets façon classeur collés en haut,
-   cartes chiffres, tableaux en police mono. Contenu et fonctions : Carnet de révisions. */
+/* Layout: bandeau de progression + filtres matières, puis calendrier (large) + colonne À faire / Faits groupées par matière, puis le tableau par matière en pleine largeur */
 :root{
-  --bg:#f6f7fb; --surface:#ffffff; --ink:#1b2240; --muted:#5d6585; --line:#dfe3ee;
-  --accent:#2c3e9e; --accent-soft:#e6e9f8; --marker:#ffe866; --marker-ink:#5a4a00;
-  --done:#1f8a5b; --done-soft:#e2f4ea; --today:#2c3e9e;
-  --todo:#b8322a; --todo-soft:#fbe4e2; --mid:#b5620a; --mid-soft:#fdf0df;
-  --f-display:"Familjen Grotesk","Segoe UI",system-ui,sans-serif;
-  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --bg:#eef1f6; --surface:#ffffff; --ink:#16213d; --muted:#5d6782; --line:#d5dbe7;
+  --accent:#2747c9; --accent-soft:#e3e8fb; --marker:#f6e04a; --marker-ink:#3d3500;
+  --done:#1f8a5b; --done-soft:#dcf1e6; --today:#2747c9;
+  --todo:#c8372d; --todo-soft:#fbe3e1; --mid:#d9730d; --mid-soft:#fdebd8;
+  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Instrument Sans",ui-sans-serif,system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#11142a; --surface:#191d36; --ink:#e7e9f5; --muted:#a0a6c4; --line:#2b3055;
-  --accent:#9aa8ff; --accent-soft:#252b55; --marker:#6b5d10; --marker-ink:#fff3b0;
-  --done:#5fd39c; --done-soft:#173527; --today:#9aa8ff; --todo:#ff8278; --todo-soft:#3d1c1b; --mid:#f2a95a; --mid-soft:#3a2810; color-scheme:dark}}
+  --bg:#0f1424; --surface:#171e33; --ink:#e6eaf5; --muted:#98a2bf; --line:#2a3452;
+  --accent:#7d95ff; --accent-soft:#232d52; --marker:#e9d43a; --marker-ink:#2a2400;
+  --done:#4fcf93; --done-soft:#173a2b; --today:#7d95ff; --todo:#ff7a6e; --todo-soft:#45201f; --mid:#ffa94d; --mid-soft:#45301a; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#11142a; --surface:#191d36; --ink:#e7e9f5; --muted:#a0a6c4; --line:#2b3055;
-  --accent:#9aa8ff; --accent-soft:#252b55; --marker:#6b5d10; --marker-ink:#fff3b0;
-  --done:#5fd39c; --done-soft:#173527; --today:#9aa8ff; --todo:#ff8278; --todo-soft:#3d1c1b; --mid:#f2a95a; --mid-soft:#3a2810; color-scheme:dark}
+  --bg:#0f1424; --surface:#171e33; --ink:#e6eaf5; --muted:#98a2bf; --line:#2a3452;
+  --accent:#7d95ff; --accent-soft:#232d52; --marker:#e9d43a; --marker-ink:#2a2400;
+  --done:#4fcf93; --done-soft:#173a2b; --today:#7d95ff; --todo:#ff7a6e; --todo-soft:#45201f; --mid:#ffa94d; --mid-soft:#45301a; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
@@ -145,7 +140,7 @@ td.itc input{font-family:var(--f-mono);font-weight:600}
 .pill.ok{background:var(--done-soft);color:var(--done)}
 .pill.mid{background:var(--mid-soft);color:var(--mid)}
 .st-todo{color:var(--todo)}.st-mid{color:var(--mid)}.st-done{color:var(--done)}
-.panel.k-todo{border-top:4px solid var(--todo)}.panel.k-mid{border-top:4px solid var(--mid)}.panel.k-done{border-top:4px solid var(--done)}
+.panel.k-todo{border-top:4px solid var(--todo)}.panel.k-qcm{border-top:4px solid var(--accent)}.st-qcm{color:var(--accent)}.panel.k-mid{border-top:4px solid var(--mid)}.panel.k-done{border-top:4px solid var(--done)}
 .count.todo{background:var(--todo-soft);color:var(--todo)}.count.mid{background:var(--mid-soft);color:var(--mid)}.count.done{background:var(--done-soft);color:var(--done)}
 .bar{display:flex}
 .bar>i.mid{background:var(--mid)}
@@ -164,6 +159,17 @@ td.itc input{font-family:var(--f-mono);font-weight:600}
 .redac input[type=text]{font-size:.74rem;color:var(--muted)}
 .redac b{font-weight:600;white-space:nowrap}
 .sess.late{background:var(--todo-soft);border-left-color:var(--todo)}
+.ev{display:block;width:100%;text-align:left;border:0;border-radius:5px;padding:2px 5px;font-size:.72rem;font-weight:600;line-height:1.3;background:var(--mid-soft);color:var(--mid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev.rdv{background:var(--accent-soft);color:var(--accent)}
+.ev.dej,.ev.diner{background:var(--done-soft);color:var(--done)}
+.ev.sport{background:#efe4fa;color:#7b3fb8}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ev.sport{background:#33234a;color:#c9a2f2}}
+:root[data-theme="dark"] .ev.sport{background:#33234a;color:#c9a2f2}
+.ditem.evi.dej,.ditem.evi.diner{border-left-color:var(--done)}.ditem.evi.sport{border-left-color:#7b3fb8}
+.ditem.evi{border-left-color:var(--mid);cursor:default}.ditem.evi.rdv{border-left-color:var(--accent)}
+#evForm select,#evForm input{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font:inherit}
+#evForm select{width:auto}
+@media (max-width:620px){.ev{white-space:normal}}
 .late-t{color:var(--todo);font-weight:600}
 .more{border:0;background:none;color:var(--accent);font-size:.74rem;text-align:left;padding:2px 4px;font-weight:600}
 .picker .panel.dayp{width:min(520px,100%);max-height:88vh;overflow:auto;gap:8px}
@@ -189,6 +195,17 @@ td.itc input{font-family:var(--f-mono);font-weight:600}
 table.lcatab{min-width:480px}
 .lcatab input[type=date]{border:0;background:transparent;color:inherit;font:inherit}
 #annSel{flex:1 1 200px;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);font:inherit}
+.errb{border:1px solid var(--todo);color:var(--todo);background:var(--todo-soft);border-radius:999px;font-size:.72rem;font-weight:600;padding:1px 8px;cursor:pointer;white-space:nowrap;flex:none}
+.revb{margin:4px 0 6px;width:100%;border-color:var(--todo);color:var(--todo)}
+tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-family:var(--f-body)}
+.errp{width:min(620px,100%)}
+.ecard{border:1px solid var(--line);border-left:4px solid var(--todo);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.ecard .q{font-weight:600}
+.ecard .meta{font-size:.76rem;color:var(--muted)}
+.ecard .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;font-weight:600;color:var(--muted)}
+.ecard .mine{color:var(--todo)}
+.ecard .good{color:var(--done)}
+.errlist{display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto}
 .tabs{display:inline-flex;background:var(--line);border-radius:10px;padding:3px;gap:3px;margin-top:10px}
 .tab{border:0;background:transparent;border-radius:8px;padding:6px 18px;font-weight:600;font-size:.92rem;color:var(--muted)}
 .tab.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
@@ -197,75 +214,49 @@ table.lcatab{min-width:480px}
 .scoreform{display:flex;flex-direction:column;gap:10px}
 .scoreform input{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--surface);color:var(--ink);font-family:var(--f-mono);font-size:1.1rem}
 .scoreform .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+/* chrono / minuteur flottant */
+.tfab{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:25;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:10px 16px;font-weight:600;font-family:var(--f-mono);box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.tfab.on{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.tfab.ring{background:var(--todo);border-color:var(--todo);color:var(--surface)}
+.tpanel{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:25;width:min(320px,calc(100% - 32px));background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:12px}
+.ttabs{display:inline-flex;background:var(--line);border-radius:10px;padding:3px;gap:3px}
+.ttab{border:0;background:transparent;border-radius:8px;padding:5px 14px;font-weight:600;font-size:.88rem;color:var(--muted)}
+.ttab.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.ttab:disabled{opacity:.5;cursor:not-allowed}
+.tdisp{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:2.6rem;font-weight:600;text-align:center;letter-spacing:.02em}
+.tdisp.end{color:var(--todo)}
+#tSet{justify-content:center;font-size:.88rem;color:var(--muted)}
+#tSet input{width:4.5em;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font-family:var(--f-mono);font-size:1rem;text-align:center}
+#tPresets{justify-content:center}
+#tPresets .btn{padding:4px 10px;font-size:.8rem}
+.tbtns{display:flex;gap:8px}.tbtns .btn{flex:1}
+.alerte{background:var(--todo-soft);color:var(--todo);border:1px solid var(--todo);border-radius:10px;padding:10px 14px;font-size:.9rem;font-weight:500;display:flex;flex-direction:column;gap:4px}
+.alerte a{color:inherit;font-weight:700}
+.clebox{display:flex;flex-direction:column;gap:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-
-[hidden]{display:none!important}
-img{max-width:100%}
-body{margin:0;padding-block:0 48px;font-size:15px;line-height:1.5}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
-.wrap{max-width:1180px;gap:18px}
-.label{font:600 11px/1.2 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-h2{font-size:19px}
-
-/* en-tête Med 4 */
-header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;padding-block:24px 0}
-header.top h1{font-size:clamp(26px,4vw,36px);font-weight:700;letter-spacing:-.01em}
-header.top h1 mark{background:linear-gradient(transparent 55%,var(--marker) 55%);color:inherit;padding:0 .1em}
-header.top p{margin:4px 0 0;color:var(--muted)}
-.meta-src{font-size:13px;color:var(--muted);text-align:right;display:grid;gap:2px}
-#todayLbl{text-transform:capitalize}
-
-/* onglets façon classeur, collés en haut */
-nav.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px 0;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:thin}
-nav.tabs .row{display:flex;gap:4px;width:max-content}
-nav.tabs .tab{border:1px solid var(--line);border-bottom:0;background:var(--surface);border-radius:8px 8px 0 0;padding:8px 16px;white-space:nowrap;font-size:14px;font-weight:600;color:var(--ink);box-shadow:none}
-nav.tabs .tab:hover{border-color:var(--accent)}
-nav.tabs .tab[aria-selected="true"],nav.tabs .tab.on{background:var(--accent);border-color:var(--accent);color:var(--surface);box-shadow:none}
-
-/* chiffres en cartes, comme le tableau de bord Med 4 */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
-.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px;align-content:start}
-.stat .v{font:700 28px/1 var(--f-display)}
-.stat .v small{font:400 15px var(--f-mono);color:var(--muted)}
-.bar{height:12px;border-radius:3px}
-
-.panel{border-radius:12px;padding:16px 18px}
-.btn{border-radius:6px}
-.btn:hover{color:var(--accent)}
-.btn.primary:hover{color:var(--surface)}
-.fbtn.on{background:var(--accent);border-color:var(--accent);color:var(--surface)}
-th{font:600 12px/1.2 var(--f-mono);text-transform:uppercase;letter-spacing:.04em;background:var(--surface)}
-tbody tr:hover td{background:var(--accent-soft)}
-.tablewrap{background:var(--surface);border-radius:10px}
-.count{background:var(--marker);color:var(--marker-ink)}
-
-footer{color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding-top:6px;border-top:1px solid var(--line)}
-footer button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:5px 10px;cursor:pointer;font:inherit;color:inherit}
-footer button:hover{border-color:var(--todo);color:var(--todo)}
-@media (max-width:520px){.meta-src{text-align:left}}
 </style>
-</head>
-<body>
+
 <div class="wrap">
-  <header class="top">
+  <div class="alerte" id="alerte" hidden></div>
+  <div class="panel clebox" id="cleBox" hidden>
+    <h2>Ouvre ton carnet</h2>
+    <p class="hint">Colle ta clé personnelle (elle est dans le lien que Claude t'a donné). Elle reste enregistrée sur cet appareil.</p>
+    <form class="addrow" id="cleForm"><input type="password" id="cleIn" placeholder="Clé du carnet" autocomplete="off" required><button class="btn primary" type="submit">Ouvrir</button></form>
+  </div>
+  <header>
     <div>
-      <span class="label">Carnet de révisions · EDN</span>
-      <h1>Carnet de <mark>révisions</mark></h1>
-      <p>Tes cours, tes QCM et la LCA, planifiés jour par jour à partir de ton classeur Med 4.</p>
+      <div class="label">Révisions · <span id="todayLbl"></span></div>
+      <h1>Carnet de révisions</h1>
+      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button></div> <span class="saved" id="hypoUpd"></span>
     </div>
-    <div class="meta-src"><span id="todayLbl"></span><span id="hypoUpd"></span></div>
-  </header>
-
-  <nav class="tabs" aria-label="Sections"><div class="row" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button></div></nav>
-
-  <div class="stats">
+    <div class="stats">
       <div class="stat"><div class="label" id="lSeen">Items terminés (3 révisions)</div><div class="v"><span id="sSeen">0</span><small>/<span id="sTotal">0</span></small></div></div>
       <div class="stat"><div class="label" id="lRev">Révisions faites</div><div class="v" id="sRev">0</div></div>
       <div class="stat" id="statAvg" hidden><div class="label">Score moyen</div><div class="v" id="sAvg">—</div></div>
       <div class="stat"><div class="label" id="lNext">Prévues à venir</div><div class="v" id="sNext">0</div></div>
     </div>
-    
-  <div class="bar" aria-label="Progression"><i id="bar" style="width:0"></i><i id="barMid" class="mid" style="width:0"></i></div>
+    <div class="bar" aria-label="Progression"><i id="bar" style="width:0"></i><i id="barMid" class="mid" style="width:0"></i></div>
+  </header>
 
   <div class="exams" id="exams" aria-label="Examen"></div>
   <div class="filters" id="filters"></div>
@@ -280,7 +271,7 @@ footer button:hover{border-color:var(--todo);color:var(--todo)}
       <section class="panel">
         <div class="lhead"><h2>Fiches LCA One</h2><span class="label num" id="lcaFN"></span></div>
         <div id="lcaFiches" class="lcalist"></div>
-        <p class="hint">Note ici les articles LCA que tu as faits, avec leur date et ta note.</p>
+        <p class="hint">Synchronisé avec ta progression sur LCA One : une fiche marquée terminée là-bas passe en vert ici. Clique sur une fiche pour l'ouvrir.</p>
       </section>
       <section class="panel">
         <div class="lhead"><h2>Articles</h2><span class="label num" id="lcaAN"></span></div>
@@ -316,6 +307,10 @@ footer button:hover{border-color:var(--todo);color:var(--todo)}
         <div class="remain" id="remain" hidden></div>
         <div class="chips" id="todo"></div>
       </section>
+      <section class="panel k-qcm" id="qcmPanel">
+        <div class="lhead"><h2 class="st-qcm">En cours · QCM pas faits <span class="label">cours commencé, aucun QCM EDN</span></h2><span class="label num" id="nQcm">0</span></div>
+        <div class="chips" id="qcmList"></div>
+      </section>
       <section class="panel k-mid">
         <div class="lhead"><h2 class="st-mid">En cours <span class="label" id="midSub">1 à 2 révisions</span></h2><span class="label num" id="nMid">0</span></div>
         <div class="chips" id="mid"></div>
@@ -348,19 +343,17 @@ footer button:hover{border-color:var(--todo);color:var(--todo)}
       <input type="text" id="newSubj" placeholder="Matière(s), séparées par des virgules">
       <button class="btn primary" type="submit">Ajouter</button>
     </form>
-    <p class="hint">Import : chaque onglet du fichier est une matière (son nom devient celui de la matière) ; l'onglet « Externat » est ignoré. Un item présent dans plusieurs onglets, repéré par son numéro ou à défaut par son intitulé, devient un seul item lié. Pour lier un item à la main, écris plusieurs matières séparées par des virgules dans la colonne Matières.</p>
+    <p class="hint">Import : chaque onglet du fichier est une matière (son nom devient celui de la matière) ; l'onglet « Externat » est ignoré. Une colonne « Date » ou « Dernière révision » donne la date de dernière révision de chaque item. Un item présent dans plusieurs onglets, repéré par son numéro ou à défaut par son intitulé, devient un seul item lié. Pour lier un item à la main, écris plusieurs matières séparées par des virgules dans la colonne Matières.</p>
   </section>
-
-  <footer>
-    <span>Ton avancement est enregistré dans ce navigateur uniquement : chaque ordinateur avance de son côté, sans lien avec les autres.</span>
-    <button type="button" id="resetLocal">Effacer mes progrès sur cet ordinateur</button>
-  </footer>
 </div>
 
 <div class="picker" id="picker" hidden>
   <div class="panel dayp">
     <div class="lhead"><h2 id="pickTitle" style="text-transform:capitalize">Jour</h2><button class="btn ghost" id="pickClose">Fermer</button></div>
-    <div class="label">Prévu ce jour · coche ce que tu as fait</div>
+    <div class="label">Évènements · RDV et gardes</div>
+    <div class="dlist" id="evList"></div>
+    <form class="drow" id="evForm"><select id="evKind" aria-label="Type"><option value="rdv">RDV</option><option value="garde">Garde</option><option value="dej">Déj</option><option value="diner">Dîner</option><option value="sport">Sport</option></select><select id="evDur" aria-label="Durée de la garde" hidden><option value="24">24h</option><option value="12">12h</option></select><input type="time" id="evTime" aria-label="Heure"><input type="text" id="evTitle" placeholder="ex. Garde urgences, RDV dentiste, déj avec Paul" style="flex:1 1 160px;min-width:0"><button class="btn primary" type="submit">Ajouter</button></form>
+    <div class="dsec label">Prévu ce jour · coche ce que tu as fait</div>
     <div class="dlist" id="dayList"></div>
     <div class="drow" id="reportRow"><label class="label" for="reportDate">Reporter les non faits au</label><input type="date" id="reportDate"><button class="btn" id="reportBtn" type="button">Reporter</button></div>
     <div class="dsec label"><label for="addSubj">Ajouter une matière</label></div>
@@ -377,15 +370,30 @@ footer button:hover{border-color:var(--todo);color:var(--todo)}
     <div class="row"><button type="button" class="btn" id="scoreSkip">Sans score</button><button type="submit" class="btn primary">Enregistrer</button></div>
   </form>
 </div>
+<div class="picker" id="errDlg" hidden>
+  <div class="panel dayp errp">
+    <div class="lhead"><h2 id="errTitle">Carnet d’erreurs</h2><button class="btn ghost" id="errClose" type="button">Fermer</button></div>
+    <div class="drow" id="errBar"><span class="label" id="errPos"></span><span style="flex:1"></span><button class="btn" id="errMode" type="button">Tout afficher</button><button class="btn primary" id="errPdf" type="button">Imprimer (PDF)</button></div>
+    <div id="errBody"></div>
+    <div class="drow" id="errNav" style="justify-content:space-between"><button class="btn" id="errPrev" type="button">← Précédente</button><button class="btn primary" id="errShow" type="button">Voir la correction</button><button class="btn" id="errNext" type="button">Suivante →</button></div>
+  </div>
+</div>
+<button class="tfab" id="tFab" type="button" aria-label="Ouvrir le chrono et le minuteur">⏱<span id="tFabT"></span></button>
+<div class="tpanel" id="tPanel" hidden>
+  <div class="lhead" style="margin:0"><div class="ttabs" role="tablist"><button class="ttab" type="button" data-tm="chrono">Chrono</button><button class="ttab" type="button" data-tm="minuteur">Minuteur</button></div><button class="btn ghost" id="tClose" type="button" aria-label="Fermer">×</button></div>
+  <div class="tdisp" id="tDisp" aria-live="polite">00:00</div>
+  <div class="drow" id="tSet"><input type="number" id="tMin" min="0" max="600" value="25" aria-label="Minutes"> min <input type="number" id="tSec" min="0" max="59" value="0" aria-label="Secondes"> s</div>
+  <div class="drow" id="tPresets"><button class="btn" type="button" data-tp="15">15 min</button><button class="btn" type="button" data-tp="25">25 min</button><button class="btn" type="button" data-tp="45">45 min</button><button class="btn" type="button" data-tp="60">1 h</button></div>
+  <div class="tbtns"><button class="btn primary" id="tGo" type="button">Démarrer</button><button class="btn" id="tReset" type="button">Réinitialiser</button></div>
+</div>
 <div class="toast" id="toast" hidden></div>
-
 
 <script>
 (function(){
 const $=id=>document.getElementById(id);
 const PALETTE=["#2747c9","#d1495b","#1f8a5b","#c27c0e","#7b3fb8","#0f8b9c","#b5487a","#5a6b1f","#c4502a","#3f6fb0"];
 const SKIP_SHEETS=["externat"];
-let state={courses:[],sessions:[],lca:[]};
+let state={courses:[],sessions:[],lca:[],events:[]};
 let LCA=null;try{LCA=JSON.parse(localStorage.getItem("carnet-lca")||"null")}catch(e){}
 let db=null, ref=null, ready=false, saveTimer=null, armed=null, pickDate=null, filter="all", exam="all";
 const EXAMS=[
@@ -398,19 +406,19 @@ let mode="cours", scoreFor=null;
 try{mode=localStorage.getItem("carnet-mode")||"cours"}catch(e){}
 if(location.hash==="#qcm")mode="qcm";
 const typeOf=s=>s.type||"cours";
-let H=null;try{H=JSON.parse(localStorage.getItem("carnet-hypo")||"null")}catch(e){}
+let E=null;try{E=JSON.parse(localStorage.getItem("carnet-edn")||"null")}catch(e){}
+let RV=null;
 const HMAP={"cardiologie":["Cardiologie et Médecine vasculaire"],"endocrinologie":["Endocrinologie-Diabète-Nutrition"],"nutrition":["Endocrinologie-Diabète-Nutrition"],"gynecologie":["Gynécologie et obstétrique"],"gastro":["Hépato-gastro-entérologie (HGE) et chirurgie digestive"],"chir dig":["Hépato-gastro-entérologie (HGE) et chirurgie digestive"],"pilly ( mal infectieuse )":["Infectiologie"],"nephrologie":["Néphrologie"],"neurologie":["Neurologie et neurochirurgie"],"neurochirurgie":["Neurologie et neurochirurgie"],"orthopedie":["Orthopédie"],"pediatrie":["Pédiatrie"],"pneumologie":["Pneumologie et allergologie"],"rhumatologie":["Rhumatologie"],"sante publique":["Santé publique/médecine du travail et légale"],"urologie":["Urologie"]};
-/* résultats Hypocampus d'un item : tous les blocs, ou seulement ceux qui correspondent à la matière m */
-function hypoOf(c,m){
-  if(!H||!H.items)return null;const blocks=m?HMAP[norm(m)]:null;
-  const r={a:0,t:0,c:0,i:0,parts:[]};
-  for(const n of new Set(String(c.item||"").match(/\d+/g)||[]))for(const e of H.items[n]||[]){
-    const b=H.B[e[0]];if(blocks&&!blocks.includes(b))continue;
-    r.a+=e[1];r.t+=e[2];r.c+=e[3];r.i+=e[4];r.parts.push(b+" "+e[1]+"/"+e[2]);}
+/* résultats EDN d'un item (plusieurs numéros possibles, ex. 40, 41) */
+function hypoOf(c){
+  if(!E||!E.items)return null;const r={a:0,t:0,c:0,i:0,parts:[]};
+  for(const n of new Set(String(c.item||"").match(/\d+/g)||[])){const v=E.items[n];if(!v)continue;
+    const ok=Math.round(v[0]*v[2]/100);r.a+=v[0];r.t+=v[1];r.c+=ok;r.i+=v[0]-ok;r.parts.push("item "+n+" "+v[0]+"/"+v[1]);}
   return r.t?r:null;
 }
 const hpct=h=>h&&h.c+h.i>0?Math.round(h.c/(h.c+h.i)*100):null;
-function hypoView(c,m){return (m&&hypoOf(c,m))||hypoOf(c)}
+function hypoView(c){return hypoOf(c)}
+function errsOf(c){if(!E||!E.errors)return[];const ns=new Set(String(c.item||"").match(/\d+/g)||[]);return E.errors.filter(e=>e.it.some(n=>ns.has(String(n))))}
 let view=new Date(); view.setDate(1);
 try{filter=localStorage.getItem("carnet-filtre")||"all"}catch(e){}
 
@@ -434,6 +442,7 @@ function canon(s){s=String(s).trim();for(const c of state.courses)for(const m of
 function dedupe(list){const out=[];for(const s of list)if(!out.some(o=>norm(o)===norm(s)))out.push(s);return out}
 function migrate(){
   if(!Array.isArray(state.lca))state.lca=[];
+  if(!Array.isArray(state.events))state.events=[];
   for(const c of state.courses){
     if(!Array.isArray(c.subjects))c.subjects=c.subject?[c.subject]:[];
     c.subjects=dedupe(c.subjects);
@@ -449,7 +458,8 @@ function stats(c,m=mode){
   const sc=doneS.filter(s=>typeof s.score==="number");
   const views=((m==="qcm"?c.qbase:c.base)||0)+doneS.length,h=hypoOf(c);
   let st=status(views);if(m==="qcm"&&h)st=h.a>=h.t?"done":(h.a>0||views>0)?"mid":"todo";
-  return{st,h,views,last:doneS.length?doneS[doneS.length-1].date:null,next:next[0]||null,
+  const lx=m==="cours"?c.lastx||null:null,ls=doneS.length?doneS[doneS.length-1].date:null;
+  return{st,h,views,last:(lx&&(!ls||lx>ls))?lx:ls,next:next[0]||null,
     lastScore:sc.length?sc[sc.length-1].score:null,avg:sc.length?Math.round(sc.reduce((a,s)=>a+s.score,0)/sc.length):null};
 }
 const scoreCls=p=>p>=75?"good":p>=50?"ok":"low";
@@ -459,14 +469,14 @@ function parseScore(v){v=String(v).replace(",",".").trim();if(!v)return null;
 function scoreBadge(x,m){
   const hv=hypoView(x.c,m);
   if(mode==="qcm"){const p=hpct(hv);
-    const hb=hv?`<span class="score ${p==null?"none":scoreCls(p)}" title="Hypocampus : ${hv.a} questions faites sur ${hv.t} (${esc(hv.parts.join(", "))})">${hv.a}/${hv.t}${p!=null?" · "+p+"%":""}</span>`:"";
+    const hb=hv?`<span class="score ${p==null?"none":scoreCls(p)}" title="EDN : ${hv.a} questions faites sur ${hv.t} (${esc(hv.parts.join(", "))})">${hv.a}/${hv.t}${p!=null?" · "+p+"%":""}</span>`:"";
     return hb+(x.lastScore!=null?`<span class="score ${scoreCls(x.lastScore)}" title="Ton dernier score noté · moyenne ${x.avg} %">${x.lastScore}%</span>`:"");}
-  if(hv&&hv.a){const p=hpct(hv);return `<span class="score ${p==null?"none":scoreCls(p)}" title="Hypocampus : ${hv.a}/${hv.t} questions">QCM ${hv.a}/${hv.t}</span>`}
+  if(hv&&hv.a){const p=hpct(hv);return `<span class="score ${p==null?"none":scoreCls(p)}" title="EDN : ${hv.a}/${hv.t} questions">QCM ${hv.a}/${hv.t}</span>`}
   const q=stats(x.c,"qcm");return q.avg!=null?`<span class="score ${scoreCls(q.avg)}" title="Moyenne aux QCM">QCM ${q.avg}%</span>`:"";
 }
 function qcmCell(x,m){
   const hv=hypoView(x.c,m),p=hpct(hv);
-  const hs=hv?`<div><span class="score ${p==null?"none":scoreCls(p)}">${hv.a}/${hv.t} questions${p!=null?" · "+p+" % justes":""}</span></div>`:'<div class="saved">pas sur Hypocampus</div>';
+  const hs=hv?`<div><span class="score ${p==null?"none":scoreCls(p)}">${hv.a}/${hv.t} questions${p!=null?" · "+p+" % justes":""}</span></div>`:'<div class="saved">pas encore sur EDN</div>';
   return hs+qcmOwn(x);
 }
 function qcmOwn(x){
@@ -488,9 +498,10 @@ function save(){
   if(!ref){$("saved").textContent=" · enregistré sur cet appareil";return}
   clearTimeout(saveTimer);$("saved").textContent=" · enregistrement…";
   saveTimer=setTimeout(async()=>{
-    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,updatedAt:new Date().toISOString()});$("saved").textContent=" · enregistré"}
+    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
     catch(e){$("saved").textContent=" · échec de l'enregistrement, réessaie"}
-  },500);
+    finally{saveTimer=null}
+  },800);
 }
 function commit(){render();if(!$("picker").hidden)renderDay();save()}
 
@@ -514,6 +525,7 @@ function render(){
     .concat(EXAMS.map(e=>{const xs=all.filter(x=>inExam(x.c,e.id));const r=xs.filter(x=>x.st!=="done").length;
       return `<button class="ebtn${exam===e.id?" on":""}" data-exam="${e.id}" title="${esc(e.subjects.join(", "))}">${esc(e.name)}<small>${r} restants sur ${xs.length}</small></button>`})).join("");
   const cs=all.filter(x=>inExam(x.c)).sort((a,b)=>firstNum(a.c.item)-firstNum(b.c.item)||a.c.name.localeCompare(b.c.name,"fr"));
+  const late=x=>!!(x.next&&x.next<todayIso);
   const seen=cs.filter(x=>x.st==="done"), started=cs.filter(x=>x.st==="mid");
   $("sSeen").textContent=seen.length;$("sTotal").textContent=cs.length;
   $("barMid").style.width=(cs.length?started.length/cs.length*100:0)+"%";
@@ -522,9 +534,9 @@ function render(){
   const Q=mode==="qcm";
   document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});
   $("lSeen").textContent=Q?"Items faits (3 séries de QCM)":"Items terminés (3 révisions)";
-  $("lRev").textContent=Q?"Questions Hypocampus faites":"Révisions faites";
-  if(Q&&H){const bs=new Set(subjects().filter(m=>subjInExam(m)).flatMap(m=>HMAP[norm(m)]||[]));let a=0,t=0;for(const b of bs){const v=H.blocks[b];if(v){a+=v[0];t+=v[1]}}$("sRev").innerHTML=`${a}<small>/${t}</small>`}
-  $("hypoUpd").textContent=Q&&H&&H.updatedAt?"Hypocampus mis à jour le "+new Date(H.updatedAt).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+  $("lRev").textContent=Q?"Questions EDN faites":"Révisions faites";
+  if(Q&&E){let a=0,t=0;for(const x of cs){const h=hypoOf(x.c);if(h){a+=h.a;t+=h.t}}$("sRev").innerHTML=`${a}<small>/${t}</small>`}
+  $("hypoUpd").textContent=Q&&E&&E.updatedAt?"EDN mis à jour le "+new Date(E.updatedAt).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
   $("statAvg").hidden=!Q;
   if(Q){const sc=state.sessions.filter(s=>typeOf(s)==="qcm"&&s.done&&typeof s.score==="number"&&cs.some(x=>x.c.id===s.courseId));$("sAvg").textContent=sc.length?Math.round(sc.reduce((a,s)=>a+s.score,0)/sc.length)+" %":"—"}
   $("midSub").textContent=Q?"1 à 2 séries":"1 à 2 révisions";
@@ -541,15 +553,25 @@ function render(){
     .concat(subs.map(m=>{const xs=cs.filter(x=>x.c.subjects.includes(m));const v=xs.filter(x=>x.st==="done").length;
       return `<button class="fbtn${filter===m?" on":""}" data-filter="${esc(m)}"><span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)} <small>${v}/${xs.length}</small></button>`})).join(""):"";
 
-  const todo=cs.filter(x=>x.st==="todo"), mid=started, done=seen;
-  const gt=grouped(todo), gm=grouped(mid), gd=grouped(done);
+  const qdone=x=>{const h=hypoOf(x.c);return !!(h&&h.a>0)};
+  const Qc=mode==="cours";
+  const midAll=started.filter(x=>!late(x));
+  /* onglet QCM : items dont le cours a été révisé mais sans aucun QCM (ni EDN ni série notée) */
+  const qonly=Q?cs.filter(x=>x.st==="todo"&&!qdone(x)&&stats(x.c,"cours").views>0):[];
+  /* un item en cours dont la révision prévue est en retard repasse dans À faire */
+  const todo=cs.filter(x=>(x.st==="todo"&&!qonly.includes(x))||(x.st==="mid"&&late(x))), mid=midAll, done=seen;
+  const gt=grouped(todo), gm=grouped(mid), gd=grouped(done), gq=grouped(qonly);
+  $("qcmPanel").hidden=!Q;
+  $("qcmPanel").querySelector("h2").innerHTML='Cours fait · QCM pas fait <span class="label">prêts pour les QCM</span>';
+  $("nQcm").textContent=new Set(gq.flatMap(g=>g[1].map(x=>x.c.id))).size;
+  $("qcmList").innerHTML=gq.length?gq.map(groupHtml).join(""):'<div class="empty">Les items dont tu as révisé le cours sans avoir encore fait de QCM apparaîtront ici.</div>';
   $("nTodo").textContent=new Set(gt.flatMap(g=>g[1].map(x=>x.c.id))).size;
   const ex=examOf(exam);
   $("remain").hidden=!ex;
   if(ex){const sc=filter==="all"?cs:cs.filter(x=>x.c.subjects.includes(filter));const a=sc.filter(x=>x.st==="todo").length,b=sc.filter(x=>x.st==="mid").length;
     $("remain").innerHTML=`${esc(ex.name)}${filter!=="all"?" · "+esc(filter):""} : il te reste <b>${a+b}</b> items, dont <b>${a}</b> pas commencés et <b>${b}</b> en cours.`}
   $("nMid").textContent=new Set(gm.flatMap(g=>g[1].map(x=>x.c.id))).size;
-  $("mid").innerHTML=gm.length?gm.map(groupHtml).join(""):'<div class="empty">Aucun item commencé pour l\'instant.</div>';
+  $("mid").innerHTML=gm.length?gm.map(midGroupHtml).join(""):'<div class="empty">Aucun item commencé pour l\'instant.</div>';
   $("nDone").textContent=new Set(gd.flatMap(g=>g[1].map(x=>x.c.id))).size;
   $("todo").innerHTML=gt.length?gt.map(groupHtml).join(""):`<div class="empty">${cs.length?"Tous les items ont été commencés.":"Importe ton Excel pour remplir cette liste."}</div>`;
   $("done").innerHTML=gd.length?gd.map(groupHtml).join(""):`<div class="empty">Un item arrive ici après sa 3e ${mode==="qcm"?"série de QCM":"révision"}.</div>`;
@@ -561,18 +583,38 @@ function render(){
 const REDMAP={"urologie":["CFEU"],"nephrologie":["CUEN"],"orthopedie":["CFCOT"],"cardiologie":["CNECardio","CEMV"],"rhumatologie":["COFER"],"gynecologie":["CNEGM","CEGO"],"nutrition":["CENutri"],"endocrinologie":["CEEDMM"],"neurologie":["CENeuro"],"neurochirurgie":["CENC"],"pneumologie":["CEP"],"pediatrie":["CNPU","CNHUCP"],"chir dig":["CCVD"],"gastro":["CDUHGE"],"sante publique":["CUESP"],"pilly ( mal infectieuse )":["CMIT"]};
 function isRedac(c,m){const r=REDMAP[norm(m)];if(!r||!c.redac)return true;return r.some(a=>c.redac.includes("("+a+")"))}
 let openG=new Set();try{openG=new Set(JSON.parse(localStorage.getItem("carnet-ouverts")||"[]"))}catch(e){}
-const isOpen=m=>openG.has(m)||(filter!=="all"&&filter===m);
+const isOpen=m=>m.startsWith("SEM:")?!openG.has(m):(openG.has(m)||(filter!=="all"&&filter===m));
+/* En cours : rangés par semaine de dernière révision (semaines du lundi au dimanche) */
+function weekIdx(s){const ws=x=>{const y=new Date(x+"T12:00");y.setDate(y.getDate()-((y.getDay()+6)%7));return y};return Math.round((ws(todayIso)-ws(s))/(7*864e5))}
+function weekRange(i){const y=new Date(todayIso+"T12:00");y.setDate(y.getDate()-((y.getDay()+6)%7)-7*i);const z=new Date(y);z.setDate(y.getDate()+6);return " · "+fmt(iso(y)).slice(0,5)+" au "+fmt(iso(z)).slice(0,5)}
+function weekGroups(list){
+  const fl=filter==="all"?list:list.filter(x=>x.c.subjects.includes(filter));
+  const B=["Cette semaine"+weekRange(0),"Semaine dernière"+weekRange(1),"Il y a 2 semaines"+weekRange(2),"Il y a 3 semaines ou plus","Sans date (révisions de ton Excel)"].map(l=>[l,[]]);
+  for(const x of fl){const i=x.last?Math.min(3,Math.max(0,weekIdx(x.last))):4;B[i][1].push(x)}
+  B.forEach(b=>b[1].sort((p,q)=>(q.last||"").localeCompare(p.last||"")||firstNum(p.c.item)-firstNum(q.c.item)));
+  return B.filter(b=>b[1].length);
+}
+function weekHtml([lab,xs]){const k="SEM:"+lab.split(" · ")[0],o=isOpen(k);
+  return `<button type="button" class="grp${o?" open":""}" data-grp="${esc(k)}" aria-expanded="${o}"><span class="chev">▶</span>${esc(lab)}<small>${xs.length}</small></button>`+(o?xs.map(x=>chip(x,filter!=="all"?filter:x.c.subjects[0],true)).join(""):"")}
 function groupHtml([m,xs]){
   const o=isOpen(m);
-  return `<button type="button" class="grp${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><span class="chev">▶</span><span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<small>${xs.length}</small></button>`+(o?xs.map(x=>chip(x,m)).join(""):"");
+  return `<button type="button" class="grp${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><span class="chev">▶</span><span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<small>${xs.length}</small></button>`+(o&&mode==="qcm"&&subjErrs(m).length?`<button class="btn revb" data-review="${esc(m)}">Relire les ${subjErrs(m).length} erreurs de ${esc(m)}</button>`:"")+(o?xs.map(x=>chip(x,m)).join(""):"");
 }
-function chip(x,m){
+/* En cours : par matière, puis dans chaque matière par semaine de dernière révision */
+function midGroupHtml([m,xs]){
+  const o=isOpen(m);
+  let h=`<button type="button" class="grp${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><span class="chev">▶</span><span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<small>${xs.length}</small></button>`;
+  if(!o)return h;
+  const ys=[...xs].sort((p,q)=>(q.last||"").localeCompare(p.last||"")||firstNum(p.c.item)-firstNum(q.c.item));
+  return h+ys.map(x=>chip(x,m,true)).join("");
+}
+function chip(x,m,showLast){
   const others=x.c.subjects.filter(s=>s!==m);
   const off=m&&!isRedac(x.c,m);
   return `<button class="chip${armed===x.c.id?" sel":""}${off?" offr":""}"${off?` title="${esc(m)} n'est pas rédactrice de cet item"`:""} draggable="true" data-cid="${x.c.id}" style="--c:${colorOf(m||x.c.subjects[0])}">
     <span class="it">${x.c.item?esc(x.c.item):"—"}</span>
-    <span class="nm"><b>${esc(x.c.name)}</b>${x.c.redac?`<em style="display:block">Rédacteurs : ${esc(x.c.redac)}</em>`:""}<em>${others.length?`<span class="link" title="Item lié">aussi en ${esc(others.join(", "))}</span> `:""}${x.next?(x.next<todayIso?`<span class="late-t">en retard (${fmt(x.next)})</span>`:"prévu le "+fmt(x.next)):""}</em></span>
-    ${scoreBadge(x,m)}${x.views?`<span class="count ${x.st}" title="Nombre de fois vu">×${x.views}</span>`:""}</button>`;
+    <span class="nm"><b>${esc(x.c.name)}</b>${x.c.redac?`<em style="display:block">Rédacteurs : ${esc(x.c.redac)}</em>`:""}<em>${showLast&&x.last?`révisé le ${fmt(x.last)} `:""}${others.length?`<span class="link" title="Item lié">aussi en ${esc(others.join(", "))}</span> `:""}${x.next?(x.next<todayIso?`<span class="late-t">en retard (${fmt(x.next)})</span>`:"prévu le "+fmt(x.next)):""}</em></span>
+    ${scoreBadge(x,m)}${mode==="qcm"&&errsOf(x.c).length?`<span class="errb" role="button" tabindex="0" data-errs="${x.c.id}" title="Ouvrir le carnet d’erreurs">${errsOf(x.c).length} erreur${errsOf(x.c).length>1?"s":""}</span>`:""}${x.views?`<span class="count ${x.st}" title="Nombre de fois vu">×${x.views}</span>`:""}</button>`;
 }
 function renderCal(){
   $("month").textContent=view.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
@@ -582,8 +624,10 @@ function renderCal(){
     const d=new Date(start);d.setDate(start.getDate()+i);const k=iso(d);
     if(i===35&&d.getMonth()!==view.getMonth())break;
     const ss=state.sessions.filter(s=>s.date===k&&typeOf(s)===mode);
+    const evs=evOf(k);
     h+=`<div class="day${d.getMonth()!==view.getMonth()?" out":""}${k===todayIso?" today":""}${armed?" armed":""}" data-date="${k}">
       <div class="dn"><b>${d.getDate()}</b><button class="addday" data-add="${k}" aria-label="Ajouter un item le ${fmt(k)}">+</button></div>
+      ${evs.map(v=>`<button class="ev ${v.kind}" data-add="${k}" title="${esc(evLabel(v))}">${esc(evLabel(v))}</button>`).join("")}
       ${ss.slice(0,4).map(s=>{const c=state.courses.find(c=>c.id===s.courseId);if(!c)return"";
         return `<label class="sess${s.done?" done":k<todayIso?" late":""}" style="--c:${colorOf(c.subjects[0])}" title="${esc(label(c))} (${esc(c.subjects.join(", ")||"sans matière")})">
           <input type="checkbox" data-toggle="${s.id}" ${s.done?"checked":""} aria-label="Marquer ${esc(c.name)} comme fait">
@@ -601,11 +645,12 @@ function row(x,m){
     <td><input type="text" id="n-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="name" value="${esc(x.c.name)}" aria-label="Intitulé"><div class="redac"><b>Rédacteurs :</b><input type="text" id="r-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="redac" value="${esc(x.c.redac||"")}" placeholder="collèges rédacteurs (LiSA)" aria-label="Collèges rédacteurs"></div></td>
     <td><input type="text" id="s-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="subjects" value="${esc(x.c.subjects.join(", "))}" aria-label="Matières" title="${others.length?"Lié à : "+esc(others.join(", ")):""}"></td>
     <td><span class="stepper"><button data-step="-1" aria-label="Retirer une révision">−</button><b class="num">${x.views}</b><button data-step="1" aria-label="Ajouter une révision">+</button></span></td>
-    <td class="num">${mode==="qcm"?qcmCell(x,m):fmt(x.last)}</td><td class="num">${x.next&&x.next<todayIso?`<span class="late-t">en retard · ${fmt(x.next)}</span>`:fmt(x.next)}</td>
+    <td class="num">${mode==="qcm"?qcmCell(x,m)+(errsOf(x.c).length?`<div><button class="errb" data-errs="${x.c.id}">Carnet d’erreurs · ${errsOf(x.c).length}</button></div>`:""):fmt(x.last)}</td><td class="num">${x.next&&x.next<todayIso?`<span class="late-t">en retard · ${fmt(x.next)}</span>`:fmt(x.next)}</td>
     <td>${{done:'<span class="pill ok">Fait</span>',mid:'<span class="pill mid">En cours</span>',todo:'<span class="pill todo">À faire</span>'}[x.st]}</td>
     <td><button class="del" data-delc="${x.c.id}" aria-label="Supprimer l'item">×</button></td></tr>`;
 }
-function hypoBlockTxt(m){if(!H)return"";const bs=HMAP[norm(m)]||[];let a=0,t=0;for(const b of bs){const v=H.blocks[b];if(v){a+=v[0];t+=v[1]}}return t?` · Hypocampus ${a}/${t} questions`:""}
+function subjErrs(m){const seen=new Set(),out=[];for(const c of state.courses.filter(c=>c.subjects.includes(m)))for(const e of errsOf(c)){const k=e.qid+e.d+e.url;if(!seen.has(k)){seen.add(k);out.push(e)}}return out.sort((a,b)=>b.d.localeCompare(a.d))}
+function hypoBlockTxt(m){if(!E)return"";let a=0,t=0;for(const c of state.courses.filter(c=>c.subjects.includes(m))){const h=hypoOf(c);if(h){a+=h.a;t+=h.t}}const ne=subjErrs(m).length;return (t?` · EDN ${a}/${t} questions`:"")+(ne?` · ${ne} erreur${ne>1?"s":""}`:"")}
 function renderLCA(){
   const F=(LCA&&LCA.fiches)||[],fd=F.filter(f=>f.done).length;
   const arts=state.lca,done=arts.filter(a=>a.date);
@@ -620,7 +665,7 @@ function renderLCA(){
   const secs=[...new Set(F.map(f=>f.s))];
   $("lcaFiches").innerHTML=F.length?secs.map(sc=>{const fs=F.filter(f=>f.s===sc),o=isOpen("LCA:"+sc);
     return `<button type="button" class="grp${o?" open":""}" data-grp="${esc("LCA:"+sc)}" aria-expanded="${o}"><span class="chev">▶</span>${esc(sc)}<small>${fs.filter(f=>f.done).length}/${fs.length}</small></button>`+(o?fs.map(f=>`<a class="fiche${f.done?" ok":""}" href="${esc(f.url)}" target="_blank" rel="noopener"><span>${f.done?"✓":"○"}</span><span class="nm2">${esc(f.t)}</span>${f.done?'<span class="pill ok">Fait</span>':'<span class="pill todo">À faire</span>'}</a>`).join(""):"")}).join("")
-    :'<div class="empty">La liste des fiches LCA One n\'est pas disponible sur ce site.</div>';
+    :'<div class="empty">Les fiches LCA One apparaîtront ici après la première synchronisation.</div>';
   const sorted=[...arts].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   $("lcaRows").innerHTML=sorted.length?sorted.map(a=>{const p=parseScore(a.note);return `<tr data-lid="${a.id}">
     <td><input type="text" id="la-n-${a.id}" data-lf="name" value="${esc(a.name)}" aria-label="Article">${a.url?`<div class="saved"><a href="${esc(a.url)}" target="_blank" rel="noopener">Correction LCA One</a></div>`:""}</td>
@@ -630,14 +675,13 @@ function renderLCA(){
     :'<tr><td colspan="4" class="empty" style="padding:14px">Aucun article pour l\'instant. Ajoute ceux que tu as faits ci-dessous.</td></tr>';
   const used=new Set(arts.map(a=>a.url));const av=((LCA&&LCA.annales)||[]).filter(x=>!used.has(x.url));
   $("annSel").innerHTML=av.length?av.map(x=>`<option value="${esc(x.url)}">${esc(x.n)}</option>`).join(""):'<option value="">Toutes les annales sont déjà ajoutées</option>';
-  $("annSel").closest(".addrow").hidden=!((LCA&&LCA.annales)||[]).length;
 }
 function renderTable(cs){
   if(!cs.length){$("rows").innerHTML=`<tr><td colspan="8" class="empty" style="padding:18px">Aucun item pour l'instant. Importe ton fichier Excel ou ajoute un item ci-dessous.</td></tr>`;return}
   const g=grouped(cs);
   $("rows").innerHTML=g.map(([m,xs])=>{const v=xs.filter(x=>x.st==="done").length,e=xs.filter(x=>x.st==="mid").length;
     const o=isOpen(m);
-    return `<tr class="gh${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><td colspan="8"><span class="chev">▶</span> <span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<span class="num">${v} faits · ${e} en cours · ${xs.length} items${mode==="qcm"?hypoBlockTxt(m):""}</span></td></tr>`+(o?xs.map(x=>row(x,m)).join(""):"")}).join("");
+    return `<tr class="gh${o?" open":""}" data-grp="${esc(m)}" aria-expanded="${o}"><td colspan="8"><span class="chev">▶</span> <span class="dot" style="--c:${colorOf(m)}"></span>${esc(m)}<span class="num">${v} faits · ${e} en cours · ${xs.length} items${mode==="qcm"?hypoBlockTxt(m):""}</span>${mode==="qcm"&&subjErrs(m).length?` <button class="btn revb" data-review="${esc(m)}">Relire les erreurs</button>`:""}</td></tr>`+(o?xs.map(x=>row(x,m)).join(""):"")}).join("");
 }
 
 /* ---------- actions ---------- */
@@ -651,7 +695,12 @@ document.addEventListener("click",e=>{
   const tb=t.closest(".tab");
   if(tb){mode=tb.dataset.mode;armed=null;try{localStorage.setItem("carnet-mode",mode)}catch(e){}render();return}
   if(t.dataset.score){e.preventDefault();openScore(t.dataset.score);return}
+  const eb2=t.closest("[data-errs]");
+  if(eb2){e.preventDefault();e.stopPropagation();const c=state.courses.find(c=>c.id===eb2.dataset.errs);if(c)openErrs("Carnet d’erreurs · "+label(c),errsOf(c).sort((a,b)=>b.d.localeCompare(a.d)));return}
+  const rb=t.closest("[data-review]");
+  if(rb){e.stopPropagation();const m=rb.dataset.review;openErrs("Relire les erreurs · "+m,subjErrs(m));return}
   const gp=t.closest("[data-grp]");
+  if(gp&&!t.closest("input")&&gp.dataset.grp.startsWith("SEM:")){const m=gp.dataset.grp;openG.has(m)?openG.delete(m):openG.add(m);try{localStorage.setItem("carnet-ouverts",JSON.stringify([...openG]))}catch(e){}render();return}
   if(gp&&!t.closest("input")){const m=gp.dataset.grp;if(isOpen(m)){openG.delete(m);if(filter===m)filter="all"}else openG.add(m);try{localStorage.setItem("carnet-ouverts",JSON.stringify([...openG]))}catch(e){}render();return}
   const fb=t.closest(".fbtn");
   const eb=t.closest(".ebtn");
@@ -659,6 +708,7 @@ document.addEventListener("click",e=>{
   if(fb){filter=fb.dataset.filter;try{localStorage.setItem("carnet-filtre",filter)}catch(e){}render();return}
   const ch=t.closest(".chip");
   if(ch){armed=armed===ch.dataset.cid?null:ch.dataset.cid;render();return}
+  if(t.dataset.evrm){state.events=state.events.filter(v=>v.id!==t.dataset.evrm);commit();return}
   if(t.dataset.rm){e.preventDefault();state.sessions=state.sessions.filter(s=>s.id!==t.dataset.rm);commit();return}
   if(t.dataset.add){openDay(t.dataset.add);return}
   const day=t.closest(".day");
@@ -710,6 +760,21 @@ function openDay(date){
   const t=new Date(date+"T12:00");t.setDate(t.getDate()+1);$("reportDate").value=iso(t);
   renderDay();$("picker").hidden=false;
 }
+/* une garde qui dépasse minuit apparaît aussi le lendemain (fin de garde) */
+const hm=t=>{const[a,b]=(t||"08:00").split(":");return +a*60+(+b||0)};
+const hfmt=n=>{n=((n%1440)+1440)%1440;return Math.floor(n/60)+"h"+String(n%60).padStart(2,"0")};
+function evOf(k){
+  const own=state.events.filter(v=>v.date===k);
+  const p=new Date(k+"T12:00");p.setDate(p.getDate()-1);const pk=iso(p);
+  const cont=state.events.filter(v=>v.date===pk&&v.kind==="garde"&&v.dur&&hm(v.time)+v.dur*60>1440).map(v=>({...v,cont:true,time:"00:00"}));
+  return cont.concat(own.sort((a,b)=>(a.time||"").localeCompare(b.time||"")));
+}
+const EVK={rdv:"RDV",garde:"Garde",dej:"Déj",diner:"Dîner",sport:"Sport"};
+function evLabel(v){
+  if(v.cont)return "Fin de garde "+hfmt(hm(v.date&&state.events.find(x=>x.id===v.id).time)+v.dur*60)+" · "+v.title;
+  if(v.kind==="garde"){const s=hm(v.time);return "Garde "+(v.dur?v.dur+"h ":"")+(v.time||v.dur?hfmt(s)+(v.dur?"–"+hfmt(s+v.dur*60):""):"")+" · "+v.title}
+  return (EVK[v.kind]||"RDV")+(v.time?" "+v.time.replace(":","h"):"")+(v.title?" · "+v.title:"");
+}
 function renderDay(){
   if(!dayDate)return;
   $("pickTitle").textContent=new Date(dayDate+"T12:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})+(mode==="qcm"?" · QCM":"");
@@ -717,6 +782,8 @@ function renderDay(){
   $("dayList").innerHTML=ss.length?ss.map(s=>{const c=state.courses.find(c=>c.id===s.courseId);if(!c)return"";
     return `<label class="ditem${s.done?" done":dayDate<todayIso?" late":""}" style="--c:${colorOf(c.subjects[0])}"><input type="checkbox" data-toggle="${s.id}" ${s.done?"checked":""} aria-label="Fait"><span class="it">${esc(c.item||"—")}</span><span class="nm2">${esc(c.name)}</span>${mode==="qcm"&&s.done?`<button type="button" class="score ${typeof s.score==="number"?scoreCls(s.score):"none"}" data-score="${s.id}">${typeof s.score==="number"?s.score+"%":"score ?"}</button>`:""}<button type="button" class="x" data-rm="${s.id}" aria-label="Retirer">×</button></label>`}).join("")
     :'<div class="empty">Rien de prévu ce jour. Ajoute une matière ci-dessous.</div>';
+  const evs=evOf(dayDate);
+  $("evList").innerHTML=evs.length?evs.map(v=>`<div class="ditem evi ${v.kind}"><span class="nm2">${esc(evLabel(v))}</span><button type="button" class="x" data-evrm="${v.id}" aria-label="Supprimer l'évènement">×</button></div>`).join(""):'<div class="empty">Aucun RDV ni garde ce jour.</div>';
   const undone=ss.filter(s=>!s.done).length;$("reportRow").hidden=!undone;
   $("reportBtn").textContent=`Reporter ${undone} item${undone>1?"s":""}`;
   const m=$("addSubj").value;const planned=new Set(ss.map(s=>s.courseId));
@@ -725,6 +792,11 @@ function renderDay(){
     :'<div class="empty">Tous les items de cette matière sont déjà prévus ce jour.</div>';
 }
 $("addSubj").onchange=renderDay;
+$("evKind").onchange=()=>{$("evDur").hidden=$("evKind").value!=="garde"};
+$("evForm").onsubmit=e=>{e.preventDefault();const title=$("evTitle").value.trim();const kd=$("evKind").value;if(!dayDate||(!title&&!/^(dej|diner|sport)$/.test(kd))){if(!title)toast("Ajoute un intitulé");return}
+  const g=$("evKind").value==="garde";
+  state.events.push({id:uid(),date:dayDate,kind:$("evKind").value,time:$("evTime").value||({garde:"08:00",dej:"12:30",diner:"20:00"}[kd]||""),title,...(g?{dur:+$("evDur").value}:{})});
+  $("evTitle").value="";$("evTime").value="";commit();toast(EVK[kd]+" ajouté au "+fmt(dayDate))};
 $("checkAll").onclick=()=>{const cks=[...document.querySelectorAll(".addck")];const all=cks.length&&cks.every(c=>c.checked);cks.forEach(c=>c.checked=!all)};
 $("addSel").onclick=()=>{const ids=[...document.querySelectorAll(".addck:checked")].map(c=>c.value);
   if(!ids.length){toast("Coche au moins un item, ou « Tout cocher » pour la matière entière");return}
@@ -738,6 +810,43 @@ $("cal").addEventListener("dragover",e=>{const d=e.target.closest(".day");if(d){
 $("cal").addEventListener("dragleave",e=>{const d=e.target.closest(".day");if(d)d.classList.remove("drop")});
 $("cal").addEventListener("drop",e=>{const d=e.target.closest(".day");if(!d)return;e.preventDefault();d.classList.remove("drop");const id=e.dataTransfer.getData("text/plain");if(state.courses.some(c=>c.id===id))place(id,d.dataset.date)});
 
+function ecard(e,show){const it=e.it.map(n=>"item "+n).join(", ");
+  return `<div class="ecard"><div class="meta">${esc(it)} · ${fmt(e.d)} · note ${e.g}/${e.mg}</div><div class="q">${esc(e.q)}</div>
+  ${show?`<div><div class="k">Ce que tu as fait</div><div class="mine">${esc(e.mine)}</div></div><div><div class="k">Bonnes réponses</div><div class="good">${esc(e.good)}</div></div><div><div class="k">À retenir</div><div>${esc(e.why)}</div></div><a href="${esc(e.url)}" target="_blank" rel="noopener" class="saved">Voir la question et la correction sur EDN</a>`:'<div class="saved">Essaie de retrouver la bonne réponse, puis affiche la correction.</div>'}</div>`}
+function pdfTxt(s){return String(s||"").replace(/β/g,"bêta").replace(/[→]/g,"->").replace(/[≤]/g,"<=").replace(/[≥]/g,">=").replace(/[µμ]/g,"u").replace(/[  ]/g," ")}
+async function errPdf(){
+  const r=RV;if(!r||!r.list.length)return;
+  if(!window.jspdf){toast("Le PDF n'a pas pu se charger. Recharge la page.");return}
+  const doc=new window.jspdf.jsPDF({unit:"mm",format:"a4"});const W=210,M=16,TW=W-2*M;let y=M;
+  const need=h=>{if(y+h>297-M){doc.addPage();y=M}};
+  const para=(txt,size,style,color,gap)=>{doc.setFont("helvetica",style);doc.setFontSize(size);doc.setTextColor(...color);const lines=doc.splitTextToSize(pdfTxt(txt),TW);for(const l of lines){need(size*0.42);doc.text(l,M,y);y+=size*0.42}y+=gap||0};
+  para(r.title,16,"bold",[22,33,61],2);
+  para(r.list.length+" erreur"+(r.list.length>1?"s":"")+" · exporté le "+fmt(todayIso)+" · source EDN.fr",9,"normal",[93,103,130],5);
+  r.list.forEach((e,i)=>{
+    need(28);doc.setDrawColor(213,219,231);doc.line(M,y-2,W-M,y-2);y+=2;
+    para((i+1)+". "+e.q,11,"bold",[22,33,61],1);
+    para(e.it.map(n=>"item "+n).join(", ")+" · "+fmt(e.d)+" · note "+e.g+"/"+e.mg,8.5,"normal",[93,103,130],2);
+    para("Ce que j'ai fait : "+e.mine,9.5,"normal",[200,55,45],1.5);
+    para("Bonnes réponses : "+e.good,9.5,"normal",[31,138,91],1.5);
+    para("À retenir : "+e.why,9.5,"normal",[22,33,61],5);
+  });
+  const blob=doc.output("blob");const name=("erreurs-"+r.title.replace(/^.*·\s*/,"")).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"-").replace(/-+/g,"-").toLowerCase()+".pdf";
+  telecharger(name,blob);
+}
+function openErrs(title,list){RV={list,i:0,show:false,all:false,title};$("errTitle").textContent=title;renderErrs();$("errDlg").hidden=false}
+function renderErrs(){const r=RV;if(!r)return;const n=r.list.length;
+  if(!n){$("errBody").innerHTML='<div class="empty">Aucune erreur enregistrée.</div>';$("errNav").hidden=true;$("errBar").hidden=true;return}
+  $("errBar").hidden=false;$("errMode").textContent=r.all?"Une par une":"Tout afficher";
+  if(r.all){$("errPos").textContent=n+" erreur"+(n>1?"s":"");$("errBody").innerHTML='<div class="errlist">'+r.list.map(e=>ecard(e,true)).join("")+'</div>';$("errNav").hidden=true;return}
+  $("errNav").hidden=false;$("errPos").textContent=`Erreur ${r.i+1} sur ${n}`;$("errBody").innerHTML=ecard(r.list[r.i],r.show);
+  $("errShow").textContent=r.show?"Masquer la correction":"Voir la correction";$("errPrev").disabled=r.i===0;$("errNext").disabled=r.i>=n-1}
+$("errClose").onclick=()=>{$("errDlg").hidden=true};
+$("errDlg").onclick=e=>{if(e.target.id==="errDlg")$("errDlg").hidden=true};
+$("errShow").onclick=()=>{RV.show=!RV.show;renderErrs()};
+$("errNext").onclick=()=>{if(RV.i<RV.list.length-1){RV.i++;RV.show=false;renderErrs()}};
+$("errPrev").onclick=()=>{if(RV.i>0){RV.i--;RV.show=false;renderErrs()}};
+$("errMode").onclick=()=>{RV.all=!RV.all;renderErrs()};
+$("errPdf").onclick=errPdf;
 $("lcaForm").onsubmit=e=>{e.preventDefault();const n=$("lcaNew").value.trim();if(!n)return;state.lca.push({id:uid(),name:n,url:"",date:todayIso,note:""});$("lcaNew").value="";commit()};
 $("addForm").onsubmit=e=>{e.preventDefault();const n=$("newName").value.trim();if(!n)return;
   const subs=dedupe($("newSubj").value.split(/[,;/]/).map(s=>s.trim()).filter(Boolean).map(canon));
@@ -748,23 +857,33 @@ $("addForm").onsubmit=e=>{e.preventDefault();const n=$("newName").value.trim();i
   ["newItem","newName","newSubj"].forEach(id=>$(id).value="");commit()};
 
 /* ---------- Excel : un onglet = une matière ---------- */
+/* date de cellule Excel (date, nombre de série, jj/mm/aaaa ou aaaa-mm-jj) vers aaaa-mm-jj */
+function toIso(v){
+  if(v instanceof Date&&!isNaN(v))return iso(new Date(v.getTime()+12*36e5));
+  if(typeof v==="number"&&v>20000&&v<80000)return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);
+  const s=String(v??"").trim();let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  if(m){let y=+m[3];if(y<100)y+=2000;return y+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0")}
+  m=s.match(/^\d{4}-\d{2}-\d{2}/);return m?m[0]:null;
+}
 function readSheet(ws){
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:""}).filter(r=>r.some(v=>String(v).trim()));
   if(!rows.length)return[];
   /* cherche la ligne de titres dans les 5 premières lignes */
   let hi=0,head=null;
   for(let i=0;i<Math.min(5,rows.length);i++){const h=rows[i].map(norm);if(h.some(x=>/item|cours|chapitre|intitule|titre|nom|lecon/.test(x))){hi=i;head=h;break}}
-  let iI=-1,iN=-1,iV=-1;
+  let iI=-1,iN=-1,iV=-1,iD=-1;
   if(head){
     iI=head.findIndex(h=>/^(n°|no|num|numero)?\s*items?\b|^n°$|^numero$|^num$/.test(h)&&!/intitule/.test(h));
     iN=head.findIndex((h,i)=>i!==iI&&/cours|chapitre|intitule|titre|nom|lecon|item/.test(h));
-    iV=head.findIndex(h=>/\bvu\b|fois|^nb|nombre|revision|tour|passage/.test(h));
+    iD=head.findIndex(h=>/date|dernier|derniere/.test(h));
+    iV=head.findIndex((h,i)=>i!==iD&&/\bvu\b|fois|^nb|nombre|revision|tour|passage/.test(h));
   }
   const body=head?rows.slice(hi+1):rows;
   if(iN<0){ /* pas de titres : la colonne la plus « textuelle » est l'intitulé, une colonne de nombres courts est l'item */
     const w=body[0]||[];iN=w.findIndex(v=>String(v).trim().length>6&&isNaN(v));if(iN<0)iN=0;
     if(iI<0)iI=w.findIndex((v,i)=>i!==iN&&/^\s*\d{1,3}([\s,]+\d{1,3})*\s*$/.test(String(v)));
   }
+  if(iD<0){const w=body.find(r=>r.some(v=>v instanceof Date))||[];iD=w.findIndex(v=>v instanceof Date)}
   const out=[];
   for(const r of body){
     let name=String(r[iN]??"").trim();if(!name)continue;
@@ -774,7 +893,7 @@ function readSheet(ws){
     item=item.replace(/^items?\s*/i,"").replace(/\s*(et|\/)\s*/g,", ").trim();
     if(/^item/i.test(norm(name))&&!item)continue;
     const v=iV>=0?parseInt(r[iV],10):NaN;
-    out.push({item,name,views:isNaN(v)?null:Math.max(0,v)});
+    out.push({item,name,views:isNaN(v)?null:Math.max(0,v),last:iD>=0?toIso(r[iD]):null});
   }
   return out;
 }
@@ -782,10 +901,10 @@ $("file").onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   if(!window.XLSX){toast("La lecture Excel n'a pas pu se charger. Recharge la page.");return}
   try{
-    const wb=XLSX.read(await f.arrayBuffer());
+    const wb=XLSX.read(await f.arrayBuffer(),{cellDates:true});
     const sheets=wb.SheetNames.filter(n=>!SKIP_SHEETS.includes(norm(n)));
     const skipped=wb.SheetNames.length-sheets.length;
-    let added=0,linked=0,updated=0;const seenIds=new Set();
+    let added=0,linked=0,updated=0;const seenIds=new Set(),dated=new Set();
     for(const sn of sheets){
       const subj=canon(sn);
       for(const r of readSheet(wb.Sheets[sn])){
@@ -798,6 +917,8 @@ $("file").onchange=async e=>{
         }else{c={id:uid(),item:r.item,name:r.name,subjects:[subj],base:0};state.courses.push(c);added++}
         if(r.views!=null){const done=state.sessions.filter(s=>s.courseId===c.id&&s.done).length;
           const b=Math.max(0,r.views-done);c.base=seenIds.has(c.id)?Math.max(c.base||0,b):b}
+        if(r.last&&(!c.lastx||r.last>c.lastx))c.lastx=r.last;
+        if(r.last)dated.add(c.id);
         seenIds.add(c.id);
       }
     }
@@ -808,7 +929,7 @@ $("file").onchange=async e=>{
       if(iI>=0&&iR>=0){const red={};for(const r of rows.slice(1)){const n=parseInt(r[iI],10);if(isNaN(n)||red[n])continue;red[n]=String(r[iR]).split("•").map(s=>s.trim()).filter(Boolean)}
         for(const c of state.courses){const cols=[];for(const n of (String(c.item).match(/\d+/g)||[]))for(const x of red[n]||[])if(!cols.includes(x))cols.push(x);if(cols.length)c.redac=cols.join(" · ")}}}
     commit();
-    toast(`${sheets.length} matières importées${skipped?" (Externat ignoré)":""} · ${added} items ajoutés · ${linked} items liés entre matières`);
+    toast(`${sheets.length} matières importées${skipped?" (Externat ignoré)":""} · ${added} items ajoutés · ${linked} items liés entre matières${dated.size?" · "+dated.size+" dates de dernière révision":""}`);
   }catch(err){toast("Impossible de lire ce fichier. Vérifie que c'est un .xlsx ou .csv.")}
   e.target.value="";
 };
@@ -829,41 +950,110 @@ $("export").onclick=async()=>{
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(plan),"Planning");
   if(!wb.SheetNames.length){toast("Rien à exporter pour l'instant.");return}
   const buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
-  a.download="revisions-"+todayIso+".xlsx";document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+  telecharger("revisions.xlsx",new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
 };
+
+/* ---------- chrono / minuteur (état gardé sur cet appareil, continue même si la page est rechargée) ---------- */
+const T={m:"minuteur",run:false,start:0,acc:0,dur:25*60000,rang:false};
+try{Object.assign(T,JSON.parse(localStorage.getItem("carnet-timer")||"{}"))}catch(e){}
+const tSave=()=>{try{localStorage.setItem("carnet-timer",JSON.stringify(T))}catch(e){}};
+const tEl=()=>T.acc+(T.run?Date.now()-T.start:0);
+const tFmt=ms=>{const s=Math.max(0,Math.round(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(x).padStart(2,"0")};
+let tAudio=null;
+function tBeep(){try{tAudio=tAudio||new (window.AudioContext||window.webkitAudioContext)();const a=tAudio;
+  for(let i=0;i<4;i++){const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);const t0=a.currentTime+i*0.45;g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(0.35,t0+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+0.35);o.start(t0);o.stop(t0+0.4)}}catch(e){}}
+function tRender(){
+  const C=T.m==="chrono",el=tEl(),left=T.dur-el;
+  if(!C&&T.run&&left<=0){T.run=false;T.acc=T.dur;T.rang=true;tSave();tBeep();toast("Minuteur terminé !");$("tPanel").hidden=false}
+  const shown=C?el:Math.max(0,T.dur-tEl()),idle=!T.run&&(T.acc===0||T.rang);
+  $("tDisp").textContent=tFmt(shown);$("tDisp").classList.toggle("end",!C&&T.rang);
+  document.querySelectorAll(".ttab").forEach(b=>{b.classList.toggle("on",b.dataset.tm===T.m);b.disabled=!idle&&b.dataset.tm!==T.m});
+  $("tSet").hidden=$("tPresets").hidden=C||!idle;
+  $("tGo").textContent=T.run?"Pause":T.rang?"Relancer":idle?"Démarrer":"Reprendre";
+  $("tFabT").textContent=idle&&!T.rang?"":" "+tFmt(shown);
+  $("tFab").classList.toggle("on",T.run);$("tFab").classList.toggle("ring",T.rang);
+}
+function tReset(){T.run=false;T.acc=0;T.start=0;T.rang=false;tSave();tRender()}
+$("tFab").onclick=()=>{$("tPanel").hidden=!$("tPanel").hidden;tRender()};
+$("tClose").onclick=()=>{$("tPanel").hidden=true};
+document.querySelectorAll(".ttab").forEach(b=>b.onclick=()=>{if(b.disabled)return;T.m=b.dataset.tm;tReset()});
+document.querySelectorAll("[data-tp]").forEach(b=>b.onclick=()=>{$("tMin").value=b.dataset.tp;$("tSec").value=0});
+$("tGo").onclick=()=>{
+  if(T.run){T.acc=tEl();T.run=false}
+  else{
+    if(T.rang){T.acc=0;T.rang=false}
+    if(T.m==="minuteur"&&T.acc===0){const ms=((+$("tMin").value||0)*60+(+$("tSec").value||0))*1000;if(ms<=0){toast("Règle une durée d'abord");return}T.dur=ms}
+    T.start=Date.now();T.run=true;tBeep.prime=true;
+    try{tAudio=tAudio||new (window.AudioContext||window.webkitAudioContext)();tAudio.resume()}catch(e){}
+  }
+  tSave();tRender()};
+$("tReset").onclick=tReset;
+if(T.dur)$("tMin").value=Math.floor(T.dur/60000),$("tSec").value=Math.round(T.dur%60000/1000);
+setInterval(tRender,250);tRender();
 
 /* ---------- démarrage ---------- */
 $("todayLbl").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 $("dows").innerHTML=["L","M","M","J","V","S","D"].map(d=>`<div class="dow">${d}</div>`).join("");
-
-/* ---------- premier lancement : pré-rempli avec le classeur Med 4 ---------- */
-const MED4={"m":[["urologie",[["36","Contraception masculine",2],["38","Stérilité du couple : conduite de la première consultation",2],["40-41","Algies pelviennes chez la femme : syndrome de la douleur vésicale",null],["44","Tuméfaction pelvienne chez la femme",3],["50","Pathologie génitoscrotale chez le garçon et chez l’homme",null],["58","Sexualité normale et ses troubles",1],["124","Andropause – syndrome de déficit en testostérone lié à l’âge",2],["125","Troubles de la miction et incontinence urinaire de l’adulte et du sujet âgé",null],["126","Troubles de l’érection",null],["127","Hypertrophie bénigne de la prostate",null],["161","Infections urinaires de l’adulte et de l’enfant",null],["201","Transplantation d’organes",null],["260","Hématurie",null],["265","Lithiase urinaire",null],["270","Douleurs lombaires aiguës",null],["310","Tumeurs de la prostate",null],["311","Tumeurs du rein de l’adulte",null],["313","Tumeurs du testicule",null],["314","Tumeurs vésicales",null],["347","Rétention aiguë d’urine",null],["348","Insuffisance rénale aiguë – Anurie",null]]],["nephrologie",[["201","Transplantation d’organes",null],["202","Biothérapies et thérapies ciblées",null],["224","Hypertension artérielle de l’adulte",null],["258","Élévation de la créatininémie",null],["259","Protéinurie et syndrome néphrotique de l’adulte et de l’enfant",null],["260","Hématurie",null],["261","Néphropathie glomérulaire",null],["262","Néphropathie interstitielle",null],["264","Maladie rénale chronique chez l’adulte et l’enfant",null],["348","Insuffisance rénale aiguë - Anurie",null],["257","Œdèmes des membres inférieurs localisés ou généralisés",null],["267","Hypokaliémie",null],["267","Hyperkaliémie",null],["267","Hyponatrémie",null],["267","Hypernatrémie",null],["267","Acidose métabolique",null],["267","Alcalose métabolique",null],["259","Protéinurie et syndrome néphrotique",null],["258","Élévation de la créatininémie",null],["260","Hématurie",null],["330","Prescription et surveillance des diurétiques",null],["267","Troubles de l’équilibre acido-basique et désordres hydro-électrolytiques",null],["268","Hypercalcémie",null],["267","Hypocalcémie",null],["348","Insuffisance rénale aiguë",null]]],["orthopédie",[["47","Suivi d'un nourrisson, d'un enfant et d'un adolescent normal. Dépistage des anomalies orthopédiques, des troubles visuels, auditifs et dentaires. Examens de santé obligatoires. Médecine scolaire. Mortalité et morbidité infantiles",null],["54","Boiterie chez l'enfant",null],["93","Compression médullaire non traumatique et syndrome de la queue de cheval",1],["94","Rachialgie",null],["95","Radiculalgie et syndrome canalaire",1],["156","Infections ostéo articulaires (IOA) de l'enfant et de l'adulte",null],["199","Syndrome douloureux régional complexe (ex algodystrophie)",null],["200","Douleur et épanchement articulaire. Arthrite d'évolution récente",null],["307","Tumeurs des os primitives et secondaires",null],["334","Prise en charge immédiate pré-hospitalière et à l'arrivée à l'hôpital, évaluation des complications chez : un brûlé, un polytraumatisé, un traumatisé thoracique, un traumatisé abdominal, un traumatisé des membres et/ou du bassin, un traumatisé du rachis ou vertébro-médullaire, un traumatisé crânien ou crânio-encéphalique",null],["349","Infection aiguë des parties molles (abcès, panaris, phlegmon des gaines)",null],["361","Lésions péri-articulaires et ligamentaires du genou, de la cheville et de l'épaule",null],["362","Prothèses et ostéosynthèses",null],["363","Fractures fréquentes de l'adulte et du sujet âgé",null],["364","Fractures chez l'enfant : particularités épidémiologiques, diagnostiques et thérapeutiques",null],["365","Surveillance d'un malade sous plâtre/résine",null]]],["cardiologie",[["221","Athérome : épidémiologie et physiopathologie. Le malade polyathéromateux",null],["222","Facteurs de risque cardiovasculaire et prévention",null],["223","Dyslipidémies",null],["224","Hypertension artérielle de l'adulte et de l'enfant",null],["339","Syndromes coronariens aigus",null],["230","Douleur thoracique aiguë",null],["225","Artériopathie de l'aorte, des artères viscérales et des membres inférieurs ; anévrismes",null],["233","Valvulopathies",null],["152","Endocardite infectieuse",null],["153","Surveillance des porteurs de valve et prothèses vasculaires",null],["238","Souffle cardiaque chez l'enfant",null],["342","Malaises, perte de connaissance, crise comitiale chez l'adulte",null],["232","Fibrillation atriale",null],["236","Troubles de la conduction intracardiaque",null],["231","Électrocardiogramme",null],["237","Palpitations",null],["203","Dyspnée aiguë et chronique",null],["234","Insuffisance cardiaque de l'adulte",null],["226","Thrombose veineuse profonde et embolie pulmonaire",null],["235","Péricardite aiguë",null],["331","Arrêt cardiocirculatoire",null],["330","Prescription et surveillance des classes de médicaments les plus courantes chez l'adulte et chez l'enfant, hors anti-infectieux. Connaître les grands principes thérapeutiques",null]]],["rhumatologie",[["54","Boiterie chez l’enfant",null],["93","Compression médullaire non traumatique et syndrome de la queue de cheval",1],["94, 270","Rachialgies, douleurs lombaires aiguës",null],["95","Radiculalgie et syndrome canalaire",1],["131","Troubles de la marche et de l’équilibre",null],["117","Psoriasis",null],["128","Ostéopathies fragilisantes",null],["129","Arthrose",null],["134","Bases neurophysiologiques, mécanismes physiopathologiques d’une douleur aiguë et d’une douleur chronique",null],["135","Thérapeutiques antalgiques, médicamenteuses et non médicamenteuses",null],["156","Infections ostéoarticulaires de l’enfant et de l’adulte",null],["185","Réaction inflammatoire : aspects biologiques et cliniques. Conduite à tenir",null],["192","Pathologies auto-immunes",null],["193","Vascularites systémiques",null],["194","Lupus érythémateux systémique",null],["195","Artérite à cellules géantes",null],["196","Polyarthrite rhumatoïde",null],["197","Spondyloarthrite",null],["198","Arthropathies microcristallines",null],["199","Syndrome douloureux régional complexe",null],["200","Douleur et épanchement articulaire. Arthrite d’évolution récente",null],["202","Biothérapies et thérapies ciblées",null],["211","Sarcoïdose",null],["219","Pathologie du fer chez l’adulte et l’enfant",null],["256","Aptitude au sport chez l’adulte et l’enfant",null],["268","Hypercalcémie",null],["307","Tumeurs des os primitives et secondaires",null],["320","Myélome multiple des os",null],["330","Prescription et surveillance des classes de médicaments les plus courantes chez l’adulte et chez l’enfant",null],["361","Lésions péri-articulaires et ligamentaires du genou, de la cheville et de l’épaule",null]]],["gynecologie",[["9","Éthique médicale",null],["12","Violences sexuelles",null],["25","Grossesse extra-utérine",2],["35, 43","Anomalies du cycle menstruel. Métrorragies. Hémorragie génitale chez la femme",3],["42, 35","Aménorrhée. Anomalies du cycle menstruel",3],["124","Ménopause",2],["36","Contraception",2],["37","Prise en charge de l'interruption volontaire de grossesse",2],["38","Infertilité du couple : conduite de la première consultation",2],["39","Assistance médicale à la procréation : principaux aspects médicaux, biologiques et éthiques",2],["40","Algies pelviennes chez la femme",2],["41","Endométriose",2],["44","Tuméfaction pelvienne chez la femme",3],["49","Puberté normale et pathologique",0],["58","Sexualité normale et ses troubles",1],["162","Infections sexuellement transmissibles (IST)",2],["290","Épidémiologie, facteurs de risque, prévention et dépistage des cancers",0],["300","Tumeurs du col utérin, tumeurs du corps utérin",2],["306","Tumeur de l'ovaire",2],["312","Tumeurs du sein",2],["23","Grossesse normale",2],["24","Principales complications de la grossesse",2],["26","Douleur abdominale aiguë de la femme enceinte",2],["27","Prévention des risques fœtaux : infections, médicaments, toxiques, irradiation",2],["28","Infection urinaire et grossesse",3],["30","Prématurité et retard de croissance intra-utérin : facteurs de risque et prévention",3],["31","Accouchement normal en présentation du sommet. Suites de couches normales",2],["33","Allaitement maternel",2],["34","Suites de couches pathologiques : pathologie maternelle dans les 40 jours",2],["69","Troubles psychiques de la grossesse et du post-partum",1],["247","Diabète sucré de types 1 et 2 de l'enfant et de l'adulte. Complications",0],["254","Besoins nutritionnels de la femme enceinte",2],["255","Diabète gestationnel",1],["344","Prise en charge d'une patiente atteinte de prééclampsie",2],["29","Principaux risques professionnels pour la maternité liés au travail de la mère",1]]],["nutrition",[["248","Prévention primaire par la nutrition chez l’adulte et l’enfant",null],["249","Modifications thérapeutiques du mode de vie (alimentation et activité physique) chez l’adulte et l’enfant",null],["256","Aptitude au sport chez l’adulte et l’enfant, besoins nutritionnels chez le sportif",null],["254","Besoins nutritionnels de la femme enceinte",2],["255","Diabète gestationnel",1],["33","Allaitement maternel",2],["253","Obésité de l’enfant et de l’adulte",null],["247","Diabète sucré de types 1 et 2 de l’enfant et de l’adulte. Complications",0],["223, 330","Dyslipidémies : démarche diagnostique, prise en charge et recommandations",null],["222","Facteurs de risque cardiovasculaire et prévention",null],["251","Amaigrissement à tous les âges",null],["250","Dénutrition chez l’adulte et l’enfant",2],["252","Troubles nutritionnels chez le sujet âgé",null],["71","Troubles des conduites alimentaires chez l’adolescent et l’adulte",null]]],["endocrinologie",[["36","Contraception",2],["38","Infertilité du couple : conduite de la première consultation",2],["42","Aménorrhée",null],["50","Pathologie génitoscrotale chez le garçon et chez l’homme : cryptorchidie",null],["124","Ménopause et andropause",2],["126","Trouble de l’érection",null],["128","Ostéopathies fragilisantes",null],["219","Pathologie du fer chez l’adulte et l’enfant : hémochromatose",null],["222-223","Facteurs de risque cardiovasculaire, prévention – Dyslipidémies",null],["224","Hypertension artérielle de l’adulte : causes endocriniennes",null],["240","Hypoglycémie chez l’adulte et l’enfant",null],["241","Goitre, nodules thyroïdiens et cancers thyroïdiens",null],["242","Hyperthyroïdie",null],["243","Hypothyroïdie",null],["244","Adénome hypophysaire",null],["245","Insuffisance surrénale chez l’adulte et l’enfant",null],["246","Gynécomastie",null],["247","Diabète sucré de types 1 et 2 de l’enfant et de l’adulte. Complications",0],["253","Obésité de l’enfant et de l’adulte",null],["255","Diabète gestationnel",1],["267","Désordres hydroélectrolytiques : hypocalcémie, dyskaliémie, hyponatrémie",null],["268","Hypercalcémie",null],["308","Tumeurs neuroendocrines du pancréas",null]]],["neurologie",[["72","Troubles à symptomatologie somatique et apparentés à tous les âges",null],["76","Addiction à l’alcool. Complications neurologiques de l’alcoolisme",null],["82","Altération aiguë de la vision",null],["88","Trouble aigu de la parole. Dysphonie",null],["91","Déficit neurologique récent",1],["92","Déficit moteur et/ou sensitif des membres",1],["93","Compression médullaire non traumatique et syndrome de la queue de cheval",1],["95","Radiculalgies et syndromes canalaires",1],["96","Neuropathies périphériques",1],["97","Polyradiculonévrite aiguë inflammatoire (syndrome de Guillain-Barré)",1],["98","Myasthénie",1],["99","Migraine, névralgie du trijumeau et algies de la face",null],["100","Céphalée inhabituelle aiguë et chronique chez l’adulte et l’enfant",1],["101","Paralysie faciale",null],["102","Diplopie",null],["103","Vertige",null],["104","Sclérose en plaques",null],["105","Épilepsies de l’enfant et de l’adulte",null],["106","Maladie de Parkinson",null],["107","Mouvements anormaux",null],["109, 131","Troubles de la marche et de l’équilibre ; troubles de la marche et de l’équilibre chez le sujet âgé",null],["110","Troubles du sommeil de l’enfant et de l’adulte",null],["118","Évaluation clinique et fonctionnelle d’un handicap cognitif",null],["108, 132, 343","Confusion, démences ; troubles cognitifs du sujet âgé ; état confusionnel et trouble de conscience",null],["134","Douleur",null],["151","Méningites, méningo-encéphalites, abcès cérébral chez l’adulte et l’enfant",null],["168","Infections à herpès virus du sujet immunocompétent",null],["299","Tumeurs intracrâniennes",null],["336","Comas non traumatiques chez l’adulte",null],["340","Accidents vasculaires cérébraux",null],["341","Hémorragie méningée",null],["342","Malaise, perte de connaissance, crise comitiale chez l’adulte",null],["334","Prise en charge immédiate pré-hospitalière et à l'arrivée à l'hôpital, évaluation des complications chez : un brûlé, un polytraumatisé, un traumatisé thoracique, un traumatisé abdominal, un traumatisé des membres et/ou du bassin, un traumatisé du rachis ou vertébro-médullaire, un traumatisé crânien ou crânio-encéphalique",1]]],["neurochirurgie",[["72","Troubles à symptomatologie somatique et apparentés à tous les âges",null],["76","Addiction à l’alcool. Complications neurologiques de l’alcoolisme",null],["82","Altération aiguë de la vision",null],["88","Trouble aigu de la parole. Dysphonie",null],["91","Déficit neurologique récent",1],["92","Déficit moteur et/ou sensitif des membres",1],["93","Compression médullaire non traumatique et syndrome de la queue de cheval",1],["95-96-97","Radiculalgies et syndromes canalaires. Neuropathies périphériques. Polyradiculonévrite aiguë inflammatoire (syndrome de Guillain-Barré)",1],["98","Myasthénie",1],["99","Migraine, névralgie du trijumeau et algies de la face",null],["100","Céphalée inhabituelle aiguë et chronique chez l’adulte et l’enfant",1],["101","Paralysie faciale",null],["102","Diplopie",null],["103","Vertige",null],["104","Sclérose en plaques",null],["105","Épilepsies de l’enfant et de l’adulte",null],["106","Maladie de Parkinson",null],["107","Mouvements anormaux",null],["109-131","Troubles de la marche et de l’équilibre. Troubles de la marche et de l’équilibre chez le sujet âgé",null],["110","Troubles du sommeil de l’enfant et de l’adulte",null],["118","Évaluation clinique et fonctionnelle d’un handicap cognitif",null],["108-132-343","Confusion, démences. Troubles cognitifs du sujet âgé. État confusionnel et trouble de conscience chez l’adulte et chez l’enfant",null],["134","Douleur",null],["151","Méningites, méningo-encéphalites, abcès cérébral chez l’adulte et l’enfant",null],["168","Infections à herpès virus du sujet immunocompétent",null],["299","Tumeurs intracrâniennes",null],["336","Comas non traumatiques chez l’adulte",null],["340","Accidents vasculaires cérébraux",null],["341","Hémorragie méningée",null],["342","Malaise, perte de connaissance, crise comitiale chez l’adulte",null],["334","Prise en charge immédiate pré-hospitalière et à l'arrivée à l'hôpital, évaluation des complications chez : un brûlé, un polytraumatisé, un traumatisé thoracique, un traumatisé abdominal, un traumatisé des membres et/ou du bassin, un traumatisé du rachis ou vertébro-médullaire, un traumatisé crânien ou crânio-encéphalique",1]]],["pneumologie",[["75","Addiction au tabac",null],["110","Troubles du sommeil de l'enfant et de l'adulte",null],["154","Infections broncho pulmonaires communautaires de l'adulte et de l'enfant",null],["159","Tuberculose de l'adulte et de l'enfant",null],["186","Hypersensibilités et allergies chez l'enfant et l'adulte : aspects physiopathologiques, épidémiologiques, diagnostiques et principes de traitement",null],["188","Hypersensibilité et allergies respiratoires chez l'enfant et chez l'adulte. Asthme, rhinite",null],["203","Dyspnée aiguë et chronique",null],["204","Toux chez l'enfant et chez l'adulte (avec le traitement)",null],["205","Hémoptysie",null],["206","Épanchement pleural liquidien",null],["207","Opacités et masses intra-thoraciques chez l'enfant et chez l'adulte",null],["208","Insuffisance respiratoire chronique",null],["209","Bronchopneumopathie chronique obstructive chez l'adulte",null],["210","Pneumopathie interstitielle diffuse",null],["211","Sarcoïdose",null],["226","Thrombose veineuse profonde et embolie pulmonaire (voir item 330)",null],["230","Douleur thoracique aiguë",null],["309","Tumeurs du poumon, primitives et secondaires",null],["338","Œdème de Quincke et anaphylaxie",null],["359","Détresse et insuffisance respiratoire aigüe du nourrisson, de l'enfant et de l'adulte",null],["360","Pneumothorax",null]]],["pédiatrie",[["13","Certificats médicaux. Décès et législation",null],["27","Prévention des risques fœtaux : infection, médicaments, toxiques, irradiation",2],["30","Prématurité et retard de croissance intra-utérin : facteurs de risque et prévention",3],["32","Évaluation et soins du nouveau-né à terme",null],["33","Allaitement maternel",2],["45","Spécificités des maladies génétiques. (voir item 9)",null],["47","Suivi d'un nourrisson, d'un enfant et d'un adolescent normal. Dépistage des anomalies orthopédiques, des troubles visuels, auditifs et dentaires. Examens de santé obligatoires. Médecine scolaire. Mortalité et morbidité infantiles",null],["48","Alimentation et besoins nutritionnels du nourrisson et de l'enfant",null],["49","Puberté normale et pathologique",0],["50","Pathologie génito-scrotale chez le garçon et chez l'homme",null],["51","Troubles de la miction chez l'enfant",null],["52","Strabisme et amblyopie de l'enfant",null],["53","Retard de croissance staturo-pondérale",null],["54","Boiterie chez l'enfant",null],["55","Développement psychomoteur du nourrisson et de l'enfant : aspects normaux et pathologiques (sommeil, alimentation, contrôles sphinctériens, psychomotricité, langage, intelligence). L'installation précoce de la relation parents-enfant et son importance. Troubles de l'apprentissage (voir item 122)",null],["56","L'enfant handicapé : orientation et prise en charge (voir items 118, 121)",null],["57","Maltraitance et enfants en danger. Protection maternelle et infantile",null],["59","Sujets en situation de précarité",null],["71","Troubles des conduites alimentaires chez l'adolescent et l'adulte (voir item 253)",null],["89","Altération de la fonction auditive",null],["100","Céphalée inhabituelle aiguë et chronique chez l'adulte et l'enfant",null],["105","Épilepsie de l'enfant et de l'adulte",null],["110","Troubles du sommeil de l'enfant et de l'adulte",null],["137","Douleur chez l'enfant : évaluation et traitements antalgique",null],["142","Connaître les aspects spécifiques des soins palliatifs en pédiatrie",null],["146","Vaccinations",null],["147","Fièvre aiguë chez l'enfant et l'adulte",null],["148","Infections naso-sinusiennes de l'adulte et de l'enfant",null],["149","Angines de l'adulte et de l'enfant",null],["150","Otites infectieuses de l'adulte et de l'enfant",null],["151","Méningites, méningoencéphalites, abcès cérébral chez l'adulte et l'enfant",null],["154","Infections broncho pulmonaires communautaires de l'adulte et de l'enfant",null],["155","Infections cutanéo-muqueuses et des phanères, bactériennes et mycosiques de l'adulte et de l'enfant",null],["156","Infections ostéo articulaires (IOA) de l'enfant et de l'adulte",null],["157","Bactériémie/Fongémie de l'adulte et de l'enfant",null],["159","Tuberculose de l'adulte et de l'enfant",null],["161","Infections urinaires de l'enfant et de l'adulte",null],["163","Coqueluche",null],["164","Exanthèmes fébriles de l'enfant",null],["168","Infections à herpès virus du sujet immunocompétent",null],["169","Infections à VIH",null],["170","Paludisme",null],["174","Pathologie infectieuse chez les migrants adultes et enfants",null],["175","Voyage en pays tropical de l'adulte et de l'enfant : conseils avant le départ, pathologies du retour : fièvre, diarrhée, manifestations cutanées",null],["176","Diarrhées infectieuses de l'adulte et de l'enfant",null],["177","Prescription et surveillance des anti-infectieux chez l'adulte et l'enfant (voir item 330)",null],["186","Hypersensibilités et allergies chez l'enfant et l'adulte : aspects physiopathologiques, épidémiologiques, diagnostiques et principes de traitement",null],["188","Hypersensibilité et allergies respiratoires chez l'enfant et chez l'adulte. Asthme, rhinite",null],["189","Déficit immunitaire",null],["203","Dyspnée aiguë et chronique",null],["204","Toux chez l'enfant et chez l'adulte (avec le traitement)",null],["207","Opacités et masses intra-thoraciques chez l'enfant et chez l'adulte",null],["212","Hémogramme chez l'adulte et l'enfant : indications et interprétation",null],["213","Anémie chez l'adulte et l'enfant",null],["215","Purpuras chez l'adulte et l'enfant",null],["216","Syndrome hémorragique d'origine hématologique",null],["219","Pathologie du fer chez l'adulte et l'enfant",null],["220","Adénopathie superficielle de l'adulte et de l'enfant",null],["224","Hypertension artérielle de l'adulte et de l'enfant",null],["238","Souffle cardiaque chez l'enfant",null],["240","Hypoglycémie chez l'adulte et l'enfant",null],["243","Hypothyroïdie",null],["245","Insuffisance surrénale chez l'adulte et l'enfant",null],["247","Diabète sucré de type 1 et 2 de l'enfant et de l'adulte. Complications",0],["249","Modifications thérapeutiques du mode de vie (alimentation et activité physique) chez l'adulte et l'enfant",null],["250","Dénutrition chez l'adulte et l'enfant",2],["251","Amaigrissement à tous les âges",null],["253","Obésité de l'enfant et de l'adulte (voir item 71)",null],["255","Diabète gestationnel",1],["256","Aptitude au sport chez l'adulte et l'enfant ; besoins nutritionnels chez le sportif (voir item 80)",null],["258","Élévation de la créatininémie",null],["259","Protéinurie et syndrome néphrotique chez l'adulte et de l'enfant",null],["260","Hématurie",null],["264","Insuffisance rénale chronique chez l'adulte et l'enfant",null],["269","Douleurs abdominales aiguës chez l'enfant et chez l'adulte",null],["271","Reflux gastro-œsophagien chez le nourrisson, chez l'enfant et chez l'adulte. Hernie hiatale",null],["274","Vomissements du nourrisson, de l'enfant et de l'adulte",null],["278","Ictère de l'adulte et de l'enfant",null],["283","Constipation chez l'enfant et l'adulte",null],["285","Diarrhée chronique chez l'adulte et l'enfant",null],["286","Diarrhée aiguë et déshydratation chez le nourrisson, l'enfant et l'adulte",null],["289","Hernie pariétale chez l'enfant et l'adulte",null],["297","Cancer de l'enfant : particularités épidémiologiques, diagnostiques et thérapeutiques",null],["315","Leucémies aiguës",null],["329","Connaître les caractéristiques des produits sanguins labiles (PSL) et leur spécificité",null],["330","Prescription et surveillance des classes de médicaments les plus courantes chez l'adulte et chez l'enfant, hors anti-infectieux (voir item 177). Connaître le bon usage des principales classes thérapeutiques",null],["331","Arrêt cardio-circulatoire",null],["332","État de choc. Principales étiologies : hypovolémique, septique (voir item 158), cardio-génique, anaphylactique",null],["334","Prise en charge immédiate pré-hospitalière et à l'arrivée à l'hôpital, évaluation des complications chez : un brûlé, un polytraumatisé, un traumatisé thoracique, un traumatisé abdominal, un traumatisé des membres et/ou du bassin, un traumatisé du rachis ou vertébro-médullaire, un traumatisé crânien ou crânio-encéphalique",null],["337","Principales intoxications aiguës",null],["343","État confusionnel et trouble de conscience chez l'adulte et chez l'enfant",null],["345","Malaise grave du nourrisson et mort inattendue du nourrisson",null],["346","Convulsions chez le nourrisson et chez l'enfant",null],["348","Insuffisance rénale aiguë - Anurie",null],["353","Risque et conduite suicidaires chez l'enfant, l'adolescent et l'adulte : identification et prise en charge",null],["354","Syndrome occlusif de l'enfant et de l'adulte",null],["355","Hémorragie digestive",null],["356","Appendicite de l'enfant et de l'adulte",null],["357","Péritonite aiguë chez l'enfant et chez l'adulte",null],["359","Détresse et insuffisance respiratoire aigüe du nourrisson, de l'enfant et de l'adulte",null],["364","Fractures chez l'enfant : particularités épidémiologiques, diagnostiques et thérapeutiques",null],["365","Surveillance d'un malade sous plâtre/résine",null]]],["chir dig",[["44","Tuméfaction pelvienne chez la femme",3],["201","Transplantation d'organes : aspects épidémiologiques et immunologiques ; principes de traitement et surveillance ; complications et pronostic ; aspects éthiques et légaux. Prélèvements d'organes et législation",null],["241","Goitre, nodules thyroïdiens et cancers thyroïdiens",null],["253","Obésité de l'enfant et de l'adulte (voir item 71)",null],["273","Dysphagie",null],["276","Hépatomégalie et masse abdominale",null],["277","Lithiase biliaire et complications",null],["280","Ascite",null],["282","Maladies inflammatoires chroniques de l'intestin (MICI) chez l'adulte",null],["287","Diverticulose colique et diverticulite aiguë du sigmoïde",null],["288","Pathologie hémorroïdaire",null],["289","Hernie pariétale chez l'enfant et l'adulte",null],["291","Cancer : cancérogénèse, oncogénétique",null],["292","Diagnostic des cancers : signes d'appel et investigations para-cliniques ; caractérisation du stade ; pronostic",null],["294","Traitement des cancers : principales modalités, classes thérapeutiques et leurs complications majeures. La décision thérapeutique pluridisciplinaire et l'information du malade",null],["295","Prise en charge et accompagnement d'un malade atteint de cancer à tous les stades de la maladie dont le stade de soins palliatifs en abordant les problématiques techniques, relationnelles, sociales et éthiques",null],["301","Tumeurs du colon et du rectum",null],["303","Tumeurs de l'estomac",null],["304","Tumeurs du foie, primitives et secondaires",null],["305","Tumeurs de l'œsophage",null],["308","Tumeurs du pancréas",null],["334","Prise en charge immédiate pré-hospitalière et à l'arrivée à l'hôpital, évaluation des complications chez : un brûlé, un polytraumatisé, un traumatisé thoracique, un traumatisé abdominal, un traumatisé des membres et/ou du bassin, un traumatisé du rachis ou vertébro-médullaire, un traumatisé crânien ou crânio-encéphalique",null],["353","Risque et conduite suicidaires chez l'enfant, l'adolescent et l'adulte : identification et prise en charge",null],["354","Syndrome occlusif de l'enfant et de l'adulte",null],["356","Appendicite de l'enfant et de l'adulte",null],["357","Péritonite aiguë chez l'enfant et chez l'adulte",null],["358","Pancréatite aiguë",null]]],["gastro",[["167","Hépatites virales",null],["219","Pathologie du fer chez l'adulte et l'enfant",null],["269","Douleurs abdominales aiguës chez l'enfant et chez l'adulte",null],["271","Reflux gastro-œsophagien chez le nourrisson, chez l'enfant et chez l'adulte. Hernie hiatale",null],["272","Ulcère gastrique et duodénal. Gastrite",null],["273","Dysphagie",null],["274","Vomissements du nourrisson, de l'enfant et de l'adulte",null],["276","Hépatomégalie et masse abdominale",null],["277","Lithiase biliaire et complications",null],["278","Ictère de l'adulte et de l'enfant",null],["279","Cirrhose et complications",null],["280","Ascite",null],["281","Pancréatite chronique",null],["282","Maladies inflammatoires chroniques de l'intestin (MICI) chez l'adulte",null],["283","Constipation chez l'enfant et l'adulte",null],["284","Colopathie fonctionnelle",null],["285","Diarrhée chronique chez l'adulte et l'enfant",null],["286","Diarrhée aiguë et déshydratation chez le nourrisson, l'enfant et l'adulte",null],["287","Diverticulose colique et diverticulite aiguë du sigmoïde",null],["288","Pathologie hémorroïdaire",null],["301","Tumeurs du colon et du rectum",null],["303","Tumeurs de l'estomac",null],["304","Tumeurs du foie, primitives et secondaires",null],["305","Tumeurs de l'œsophage",null],["308","Tumeurs du pancréas",null],["355","Hémorragie digestive",null],["358","Pancréatite aiguë",null]]],["santé publique",[["3","Le raisonnement et la décision en médecine. La médecine fondée sur les preuves (Evidence Based Medicine, EBM). La décision médicale partagée. La controverse",null],["4","Qualité et sécurité des soins. La sécurité du patient. La gestion des risques. Les événements indésirables associés aux soins (EIAS). Démarche qualité et évaluation des pratiques professionnelles",null],["5","Responsabilités médicale pénale, civile, administrative et disciplinaire. La gestion des erreurs et des plaintes ; l'aléa thérapeutique",null],["6","L'organisation de l'exercice clinique et les méthodes qui permettent de sécuriser le parcours du patient",null],["8","Les discriminations",null],["16","Organisation du système de soins. Sa régulation. Les indicateurs. Parcours de soins",null],["17","Télémédecine, télésanté et téléservices en santé",null],["18","Santé et numérique",null],["19","La sécurité sociale. L'assurance maladie. Les assurances complémentaires. La complémentaire santé solidaire (CSS). La consommation médicale. Protection sociale. Consommation médicale et économie de la santé",null],["20","La méthodologie de la recherche en santé",null],["21","Mesure de l'état de santé de la population",null],["59","Sujets en situation de précarité",null],["75","Addiction au tabac",null],["76","Addiction à l'alcool",null],["77","Addiction aux médicaments psychotropes (benzodiazépines et apparentés). (voir item 322)",null],["78","Addiction au cannabis, à la cocaïne, aux amphétamines, aux opiacés, aux drogues de synthèse. (voir item 322)",null],["79","Addictions comportementales",null],["145","Surveillance des maladies infectieuses transmissibles",null],["146","Vaccinations",null],["176","Diarrhées infectieuses de l'adulte et de l'enfant",null],["179","Risques sanitaires liés à l'eau et à l'alimentation. Toxi-infections alimentaires",null],["181","La sécurité sanitaire des produits destinés à l'homme. La veille sanitaire (voir item 325)",null],["221","Athérome : épidémiologie et physiopathologie. Le malade poly-athéromateux",null],["222","Facteurs de risque cardio-vasculaire et prévention",null],["290","Épidémiologie, facteurs de risque, prévention et dépistage des cancers",0],["297","Cancer de l'enfant : particularités épidémiologiques, diagnostiques et thérapeutiques",null],["323","Analyser et utiliser les résultats des études cliniques dans la perspective du bon usage - analyse critique, recherche clinique et niveaux de preuve (voir item 3)",null],["325","Identification et gestion des risques liés aux médicaments et aux biomatériaux, risque iatrogène, erreur médicamenteuse (voir items 4 et 5)",null],["333","Situations exceptionnelles",null],["367","Impact de l'environnement sur la santé",null]]],["pilly ( mal infectieuse )",[["4","Qualité et sécurité des soins. La sécurité du patient. La gestion des risques. Les événements indésirables associés aux soins (EIAS). Démarche qualité et évaluation des pratiques professionnelles",null],["27","Prévention des risques fœtaux : infection, médicaments, toxiques, irradiation",2],["145","Surveillance des maladies infectieuses transmissibles",null],["146","Vaccinations",null],["147","Fièvre aiguë chez l'enfant et l'adulte",null],["148","Infections naso-sinusiennes de l'adulte et de l'enfant",null],["149","Angines de l'adulte et de l'enfant",null],["150","Otites infectieuses de l'adulte et de l'enfant",null],["151","Méningites, méningoencéphalites, abcès cérébral chez l'adulte et l'enfant",null],["152","Endocardite infectieuse",null],["153","Surveillance des porteurs de prothèses valvulaires",null],["154","Infections broncho pulmonaires communautaires de l'adulte et de l'enfant",null],["155","Infections cutanéo-muqueuses et des phanères, bactériennes et mycosiques de l'adulte et de l'enfant",null],["156","Infections ostéo articulaires (IOA) de l'enfant et de l'adulte",null],["157","Bactériémie/Fongémie de l'adulte et de l'enfant",null],["159","Tuberculose de l'adulte et de l'enfant",null],["160","Tétanos",null],["161","Infections urinaires de l'enfant et de l'adulte",null],["162","Infections sexuellement transmissibles (IST) : gonococcies, chlamydioses, syphilis, papillomavirus humain (HPV), trichomonose",2],["163","Coqueluche",null],["165","Oreillons",null],["166","Grippe",null],["167","Hépatites virales",null],["168","Infections à herpès virus du sujet immunocompétent",null],["169","Infections à VIH",null],["170","Paludisme",null],["171","Gale et pédiculose",null],["172","Parasitoses digestives : giardiose, amoebose, téniasis, ascaridiose, oxyurose, anguillulose, cryptosporidiose",null],["173","Zoonoses",null],["174","Pathologie infectieuse chez les migrants adultes et enfants",null],["175","Voyage en pays tropical de l'adulte et de l'enfant : conseils avant le départ, pathologies du retour : fièvre, diarrhée, manifestations cutanées",null],["176","Diarrhées infectieuses de l'adulte et de l'enfant",null],["177","Prescription et surveillance des anti-infectieux chez l'adulte et l'enfant (voir item 330)",null],["178","Risques émergents, bioterrorisme, maladies hautement transmissibles",null],["190","Fièvre prolongée",null],["191","Fièvre chez un patient immunodéprimé",null],["215","Purpuras chez l'adulte et l'enfant",null],["217","Syndrome mononucléosique",null],["218","Éosinophilie",null],["220","Adénopathie superficielle de l'adulte et de l'enfant",null],["357","Péritonite aiguë chez l'enfant et chez l'adulte",null],["362","Prothèses et ostéosynthèses",null],["366","Exposition accidentelle aux liquides biologiques : conduite à tenir",null]]]],"r":{"1":["Médecine générale (CNGE)"],"2":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"3":["Médecine générale (CNGE)","Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)"],"4":["Thérapeutique (CNET)"],"5":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"6":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"7":["Médecine légale (CNEML)"],"8":["Humanités (COLHUM)"],"9":["Humanités (COLHUM)"],"10":["Humanités (COLHUM)"],"11":["Humanités (COLHUM)"],"12":["Médecine légale (CNEML)"],"13":["Médecine légale (CNEML)"],"14":["Humanités (COLHUM)"],"15":["Psychiatrie (CNUP)"],"16":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"17":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"18":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"19":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"20":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"21":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"22":["Génétique médicale (CNEPGM)"],"23":["Médecine générale (CNGE)"],"24":["Gynécologie obstétrique (CEGO)"],"25":["Gynécologie obstétrique (CEGO)"],"26":["Gynécologie obstétrique (CEGO)"],"27":["Gynécologie obstétrique (CEGO)"],"28":["Gynécologie obstétrique (CEGO)"],"29":["Gynécologie obstétrique (CEGO)"],"30":["Gynécologie obstétrique (CEGO)","Pédiatrie (CNPU)"],"31":["Gynécologie obstétrique (CEGO)"],"32":["Pédiatrie (CNPU)"],"33":["Gynécologie obstétrique (CEGO)"],"34":["Gynécologie obstétrique (CEGO)"],"35":["Gynécologie médicale (CNEGM)","Gynécologie obstétrique (CEGO)"],"36":["Gynécologie médicale (CNEGM)"],"37":["Gynécologie obstétrique (CEGO)"],"38":["Gynécologie obstétrique (CEGO)","Médecine et Biologie du Développement et de la Reproduction (CBMDR)","Gynécologie médicale (CNEGM)"],"39":["Gynécologie obstétrique (CEGO)","Médecine et Biologie du Développement et de la Reproduction (CBMDR)","Gynécologie médicale (CNEGM)"],"40":["Gynécologie médicale (CNEGM)","Douleur (CEMD)","Gynécologie obstétrique (CEGO)"],"41":["Gynécologie médicale (CNEGM)","Gynécologie obstétrique (CEGO)"],"42":["Gynécologie médicale (CNEGM)"],"43":["Gynécologie obstétrique (CEGO)"],"44":["Gynécologie obstétrique (CEGO)"],"45":["Génétique médicale (CNEPGM)"],"46":["Génétique médicale (CNEPGM)"],"47":["Pédiatrie (CNPU)"],"48":["Pédiatrie (CNPU)"],"49":["Pédiatrie (CNPU)"],"50":["Urologie (CFEU)"],"51":["Chirurgie Pédiatrique (CNHUCP)"],"52":["Ophtalmologie (COUF)"],"53":["Pédiatrie (CNPU)"],"54":["Pédiatrie (CNPU)"],"55":["Pédiatrie (CNPU)","Psychiatrie (CNUP)"],"56":["Pédiatrie (CNPU)","Médecine Physique et de Réadaptation (COFEMER)"],"57":["Pédiatrie (CNPU)"],"58":["Gynécologie médicale (CNEGM)","Psychiatrie (CNUP)"],"59":["Médecine générale (CNGE)"],"60":["Psychiatrie (CNUP)"],"61":["Psychiatrie (CNUP)"],"62":["Psychiatrie (CNUP)"],"63":["Psychiatrie (CNUP)"],"64":["Psychiatrie (CNUP)"],"65":["Psychiatrie (CNUP)"],"66":["Psychiatrie (CNUP)"],"67":["Psychiatrie (CNUP)"],"68":["Psychiatrie (CNUP)"],"69":["Psychiatrie (CNUP)"],"70":["Psychiatrie (CNUP)"],"71":["Psychiatrie (CNUP)","Addictologie (CUNEA)"],"72":["Médecine générale (CNGE)"],"73":["Psychiatrie (CNUP)"],"74":["Thérapeutique (CNET)","Psychiatrie (CNUP)"],"75":["Addictologie (CUNEA)"],"76":["Addictologie (CUNEA)"],"77":["Addictologie (CUNEA)"],"78":["Addictologie (CUNEA)"],"79":["Addictologie (CUNEA)"],"80":["Médecine du sport (CFEMTSEP)","Addictologie (CUNEA)"],"81":["Ophtalmologie (COUF)"],"82":["Ophtalmologie (COUF)"],"83":["Ophtalmologie (COUF)"],"84":["Ophtalmologie (COUF)"],"85":["Ophtalmologie (COUF)"],"86":["Ophtalmologie (COUF)"],"87":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"88":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"89":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"90":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"91":["Neurologie (CENeuro)"],"92":["Neurologie (CENeuro)"],"93":["Neurologie (CENeuro)","Neurochirurgie (CENC)"],"94":["Médecine Physique et de Réadaptation (COFEMER)"],"95":["Rhumatologie (COFER)","Neurochirurgie (CENC)","Chirurgie Orthopédique et Traumatologique (CFCOT)"],"96":["Neurologie (CENeuro)","Douleur (CEMD)"],"97":["Neurologie (CENeuro)"],"98":["Neurologie (CENeuro)","Douleur (CEMD)"],"100":["Neurologie (CENeuro)","Douleur (CEMD)"],"101":["Neurologie (CENeuro)"],"102":["Ophtalmologie (COUF)"],"103":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"104":["Neurologie (CENeuro)"],"105":["Neurologie (CENeuro)"],"106":["Neurologie (CENeuro)"],"107":["Neurologie (CENeuro)"],"108":["Neurologie (CENeuro)"],"109":["Neurologie (CENeuro)"],"110":["Médecine générale (CNGE)"],"111":["Dermatologie (CEDEF)"],"112":["Dermatologie (CEDEF)"],"113":["Dermatologie (CEDEF)"],"114":["Dermatologie (CEDEF)"],"115":["Dermatologie (CEDEF)"],"116":["Dermatologie (CEDEF)"],"117":["Dermatologie (CEDEF)"],"118":["Médecine Physique et de Réadaptation (COFEMER)"],"119":["Médecine Physique et de Réadaptation (COFEMER)"],"120":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"121":["Psychiatrie (CNUP)"],"122":["Médecine Physique et de Réadaptation (COFEMER)"],"123":["Gériatrie (CNEG)"],"124":["Gynécologie médicale (CNEGM)"],"125":["Urologie (CFEU)"],"126":["Urologie (CFEU)"],"127":["Urologie (CFEU)"],"128":["Rhumatologie (COFER)"],"129":["Rhumatologie (COFER)"],"130":["Gériatrie (CNEG)"],"131":["Gériatrie (CNEG)"],"132":["Gériatrie (CNEG)"],"133":["Médecine générale (CNGE)"],"134":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Douleur (CEMD)"],"135":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Douleur (CEMD)"],"136":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"137":["Pédiatrie (CNPU)"],"138":["Douleur (CEMD)"],"139":["Soins palliatifs (CNEFUSP)"],"140":["Soins palliatifs (CNEFUSP)"],"141":["Soins palliatifs (CNEFUSP)"],"142":["Soins palliatifs (CNEFUSP)"],"143":["Soins palliatifs (CNEFUSP)"],"144":["Psychiatrie (CNUP)"],"145":["Bactériologie - Virologie - Hygiène Hospitalière (AZAY)"],"146":["Bactériologie - Virologie - Hygiène Hospitalière (AZAY)","Médecine générale (CNGE)"],"147":["Maladies infectieuses et tropicales (CMIT)"],"148":["Médecine générale (CNGE)"],"149":["Médecine générale (CNGE)"],"150":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"151":["Maladies infectieuses et tropicales (CMIT)"],"152":["Maladies infectieuses et tropicales (CMIT)"],"153":["Cardiologie (CNECardio)"],"154":["Pneumologie (CEP)"],"155":["Dermatologie (CEDEF)"],"156":["Maladies infectieuses et tropicales (CMIT)"],"157":["Maladies infectieuses et tropicales (CMIT)"],"158":["Maladies infectieuses et tropicales (CMIT)"],"159":["Maladies infectieuses et tropicales (CMIT)"],"160":["Bactériologie - Virologie - Hygiène Hospitalière (AZAY)"],"161":["Urologie (CFEU)"],"162":["Dermatologie (CEDEF)"],"163":["Bactériologie - Virologie - Hygiène Hospitalière (AZAY)"],"164":["Pédiatrie (CNPU)"],"165":["Bactériologie - Virologie - Hygiène Hospitalière (AZAY)"],"166":["Médecine générale (CNGE)"],"167":["Gastroentérologie (CDUHGE)"],"168":["Médecine générale (CNGE)"],"169":["Maladies infectieuses et tropicales (CMIT)","Immunologie (ASSIM)"],"170":["Parasitologie (ANOFEL)","Maladies infectieuses et tropicales (CMIT)"],"171":["Parasitologie (ANOFEL)","Maladies infectieuses et tropicales (CMIT)"],"172":["Parasitologie (ANOFEL)","Maladies infectieuses et tropicales (CMIT)"],"173":["Parasitologie (ANOFEL)","Maladies infectieuses et tropicales (CMIT)"],"174":["Maladies infectieuses et tropicales (CMIT)"],"175":["Parasitologie (ANOFEL)","Maladies infectieuses et tropicales (CMIT)"],"176":["Maladies infectieuses et tropicales (CMIT)"],"177":["Bactériologie - Virologie - Hygiène Hospitalière (AZAY)"],"178":["Maladies infectieuses et tropicales (CMIT)"],"179":["Maladies infectieuses et tropicales (CMIT)"],"180":["Informatique médicale - Biomathématiques - Méthodes en épidémiologie - Statistique (CIMES)","Santé Publique (CUESP)"],"181":["Santé Publique (CUESP)","Médecine du travail (CEHUMT)"],"182":["Médecine du travail (CEHUMT)"],"183":["Médecine du travail (CEHUMT)"],"184":["Médecine du travail (CEHUMT)"],"185":["Immunologie (ASSIM)"],"186":["Allergologie (CEA)"],"187":["Allergologie (CEA)","Dermatologie (CEDEF)"],"188":["Pneumologie (CEP)"],"189":["Immunologie (ASSIM)"],"190":["Médecine interne (CEMI)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)"],"191":["Immunologie (ASSIM)"],"192":["Immunologie (ASSIM)"],"193":["Médecine interne (CEMI)"],"194":["Médecine interne (CEMI)"],"195":["Médecine interne (CEMI)"],"196":["Rhumatologie (COFER)"],"197":["Rhumatologie (COFER)"],"198":["Allergologie (CEA)","Rhumatologie (COFER)"],"199":["Douleur (CEMD)"],"200":["Rhumatologie (COFER)"],"201":["Néphrologie (CUEN)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)"],"202":["Immunologie (ASSIM)"],"203":["Pneumologie (CEP)"],"204":["Pneumologie (CEP)"],"205":["Pneumologie (CEP)"],"206":["Pneumologie (CEP)"],"207":["Radiologie (CERF)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)"],"208":["Pneumologie (CEP)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)"],"209":["Pneumologie (CEP)"],"210":["Pneumologie (CEP)"],"211":["Médecine interne (CEMI)"],"212":["Hématologie (CEH)"],"213":["Médecine interne (CEMI)"],"214":["Médecine interne (CEMI)"],"215":["Médecine interne (CEMI)"],"216":["Hématologie (CEH)"],"217":["Médecine interne (CEMI)"],"218":["Médecine interne (CEMI)"],"219":["Biochimie et Biologie Moléculaire (CNBBMM)"],"220":["Hématologie (CEH)"],"221":["Médecine vasculaire (CEMV)","Médecine générale (CNGE)"],"222":["Médecine vasculaire (CEMV)","Cardiologie (CNECardio)","Médecine générale (CNGE)"],"223":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)","Biochimie et Biologie Moléculaire (CNBBMM)"],"224":["Médecine vasculaire (CEMV)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Médecine générale (CNGE)"],"225":["Médecine vasculaire (CEMV)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Chirurgie vasculaire (CFCVE)"],"226":["Médecine vasculaire (CEMV)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)"],"227":["Médecine vasculaire (CEMV)"],"228":["Médecine vasculaire (CEMV)"],"229":["Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"230":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"231":["Cardiologie (CNECardio)"],"232":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"233":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"234":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"235":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"236":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"237":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Cardiologie (CNECardio)"],"238":["Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)","Pédiatrie (CNPU)"],"239":["Médecine vasculaire (CEMV)"],"240":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"241":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)","Chirurgie thoracique et Cardio-Vasculaire (CFCTCV)"],"242":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"243":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"244":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"245":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"246":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"247":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)"],"248":["Médecine vasculaire (CEMV)","Nutrition (CENutri)"],"249":["Médecine générale (CNGE)"],"250":["Nutrition (CENutri)"],"251":["Nutrition (CENutri)"],"252":["Gériatrie (CNEG)"],"253":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)","Nutrition (CENutri)"],"254":["Nutrition (CENutri)"],"255":["Endocrinologie, Diabète et Maladies Métabolique (CEEDMM)","Gynécologie obstétrique (CEGO)"],"256":["Médecine du sport (CFEMTSEP)"],"257":["Néphrologie (CUEN)"],"258":["Néphrologie (CUEN)"],"259":["Néphrologie (CUEN)"],"260":["Urologie (CFEU)","Néphrologie (CUEN)"],"261":["Néphrologie (CUEN)"],"262":["Néphrologie (CUEN)"],"263":["Néphrologie (CUEN)"],"264":["Néphrologie (CUEN)"],"265":["Urologie (CFEU)"],"266":["Néphrologie (CUEN)"],"267":["Biochimie et Biologie Moléculaire (CNBBMM)","Néphrologie (CUEN)"],"268":["Rhumatologie (COFER)","Néphrologie (CUEN)"],"269":["Chirurgie viscérale et digestive (CCVD)"],"270":["Rhumatologie (COFER)","Urologie (CFEU)"],"271":["Gastroentérologie (CDUHGE)"],"272":["Gastroentérologie (CDUHGE)"],"273":["Gastroentérologie (CDUHGE)"],"274":["Gastroentérologie (CDUHGE)"],"275":["Médecine interne (CEMI)","Hématologie (CEH)"],"276":["Gastroentérologie (CDUHGE)"],"277":["Gastroentérologie (CDUHGE)"],"278":["Gastroentérologie (CDUHGE)"],"279":["Gastroentérologie (CDUHGE)"],"280":["Gastroentérologie (CDUHGE)"],"281":["Gastroentérologie (CDUHGE)"],"282":["Gastroentérologie (CDUHGE)"],"283":["Médecine générale (CNGE)","Gastroentérologie (CDUHGE)"],"284":["Gastroentérologie (CDUHGE)"],"285":["Gastroentérologie (CDUHGE)"],"286":["Pédiatrie (CNPU)"],"287":["Chirurgie viscérale et digestive (CCVD)"],"288":["Chirurgie viscérale et digestive (CCVD)"],"289":["Chirurgie viscérale et digestive (CCVD)","Gastroentérologie (CDUHGE)"],"290":["Médecine générale (CNGE)"],"291":["Biochimie et Biologie Moléculaire (CNBBMM)"],"292":["Cancérologie (CNECancer)"],"293":["Pathologique (CoPath)"],"294":["Cancérologie (CNECancer)"],"295":["Cancérologie (CNECancer)"],"296":["Hématologie (CEH)"],"297":["Pédiatrie (CNPU)"],"298":["ORL et Chirurgie de la Face et du Cou (ORL&CCF)"],"299":["Neurochirurgie (CENC)"],"300":["Gynécologie obstétrique (CEGO)"],"301":["Gastroentérologie (CDUHGE)"],"302":["Dermatologie (CEDEF)"],"303":["Gastroentérologie (CDUHGE)"],"304":["Gastroentérologie (CDUHGE)"],"305":["Gastroentérologie (CDUHGE)"],"306":["Gynécologie obstétrique (CEGO)"],"307":["Rhumatologie (COFER)"],"308":["Gastroentérologie (CDUHGE)"],"309":["Pneumologie (CEP)"],"310":["Urologie (CFEU)"],"311":["Urologie (CFEU)"],"312":["Gynécologie obstétrique (CEGO)","Cancérologie (CNECancer)"],"313":["Urologie (CFEU)"],"314":["Urologie (CFEU)"],"315":["Hématologie (CEH)"],"316":["Hématologie (CEH)"],"317":["Hématologie (CEH)"],"318":["Hématologie (CEH)"],"319":["Hématologie (CEH)"],"320":["Hématologie (CEH)"],"321":["Thérapeutique (CNET)","Pharmacologie (CNPM)"],"322":["Médecine générale (CNGE)","Pharmacologie (CNPM)"],"323":["Thérapeutique (CNET)","Pharmacologie (CNPM)"],"324":["Thérapeutique (CNET)","Pharmacologie (CNPM)"],"325":["Thérapeutique (CNET)","Pharmacologie (CNPM)"],"326":["Thérapeutique (CNET)","Pharmacologie (CNPM)"],"327":["Médecines Intégratives et Complémentaires (CUMIC)"],"328":["Médecine Physique et de Réadaptation (COFEMER)"],"329":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Hématologie (CEH)"],"330":["Thérapeutique (CNET)","Pharmacologie (CNPM)"],"331":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"332":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"333":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"334":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Neurochirurgie (CENC)","Chirurgie Orthopédique et Traumatologique (CFCOT)"],"335":["Chirurgie maxillo-faciale (CNECMF)"],"336":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"337":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"338":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"339":["Cardiologie (CNECardio)"],"340":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"341":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"342":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"343":["Neurologie (CENeuro)"],"344":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Gynécologie obstétrique (CEGO)"],"345":["Pédiatrie (CNPU)"],"346":["Pédiatrie (CNPU)"],"347":["Urologie (CFEU)"],"348":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Néphrologie (CUEN)"],"349":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Chirurgie Orthopédique et Traumatologique (CFCOT)"],"350":["Médecine générale (CNGE)"],"351":["Psychiatrie (CNUP)"],"352":["Psychiatrie (CNUP)"],"353":["Psychiatrie (CNUP)"],"354":["Chirurgie viscérale et digestive (CCVD)"],"355":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Gastroentérologie (CDUHGE)"],"356":["Chirurgie viscérale et digestive (CCVD)"],"357":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Chirurgie viscérale et digestive (CCVD)"],"358":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)","Gastroentérologie (CDUHGE)"],"359":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"360":["Médecine Intensive Réanimation (CEMIR)","Médecine d'urgence (CNUMU)","Anesthésie Réanimation Médecine Péri Opératoire (CNEAR)"],"361":["Chirurgie Orthopédique et Traumatologique (CFCOT)"],"362":["Chirurgie Orthopédique et Traumatologique (CFCOT)"],"363":["Chirurgie Orthopédique et Traumatologique (CFCOT)"],"364":["Chirurgie Pédiatrique (CNHUCP)"],"365":["Chirurgie Orthopédique et Traumatologique (CFCOT)"],"366":["Maladies infectieuses et tropicales (CMIT)"],"367":["Biochimie et Biologie Moléculaire (CNBBMM)"]}};
-function seedFromMed4(){
-  for(const [onglet,rows] of MED4.m){
-    const subj=canon(onglet);
-    for(const [item,name,vu] of rows){
-      const k=itemKey(item);
-      let c=(k&&state.courses.find(c=>itemKey(c.item)===k))||state.courses.find(c=>norm(c.name)===norm(name));
-      if(c){if(!c.item&&item)c.item=item;if(!c.subjects.includes(subj))c.subjects.push(subj)}
-      else{c={id:uid(),item,name,subjects:[subj],base:0};state.courses.push(c)}
-      if(typeof vu==="number")c.base=Math.max(c.base||0,vu);
-    }
-  }
-  for(const c of state.courses){const cols=[];for(const n of (String(c.item).match(/\d+/g)||[]))for(const x of MED4.r[n]||[])if(!cols.includes(x))cols.push(x);if(cols.length)c.redac=cols.join(" · ")}
+try{const raw=localStorage.getItem("carnet-revisions");if(raw)state=JSON.parse(raw)}catch(e){}
+migrate();render();
+/* ---------- synchronisation avec n8n ---------- */
+const API="https://margauxbouriez2.app.n8n.cloud/webhook/carnet-revisions";
+const V={state:0,edn:0,lca:0};
+let CLE=null;
+try{const m=location.hash.match(/k=([\w-]+)/);if(m){localStorage.setItem("carnet-cle",m[1]);history.replaceState(null,"",location.pathname+location.search)}CLE=localStorage.getItem("carnet-cle")}catch(e){}
+try{Object.assign(V,JSON.parse(localStorage.getItem("carnet-versions")||"{}"))}catch(e){}
+const keepV=()=>{try{localStorage.setItem("carnet-versions",JSON.stringify(V))}catch(e){}};
+function telecharger(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)}
+async function api(body){
+  const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),cache:"no-store"});
+  if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }
-$("resetLocal").onclick=()=>{
-  if(!confirm("Effacer tout ton avancement sur cet ordinateur ? Les autres ordinateurs ne sont pas touchés."))return;
-  try{Object.keys(localStorage).filter(k=>k.startsWith("carnet-")).forEach(k=>localStorage.removeItem(k))}catch(e){}
-  location.reload();
-};
-let fresh=true;try{const raw=localStorage.getItem("carnet-revisions");if(raw){state=JSON.parse(raw);fresh=false}}catch(e){}
-if(fresh)seedFromMed4();
-migrate();render();if(fresh)save();
-$("saved").textContent=" · enregistré sur cet ordinateur";
+function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[]))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
+function alertes(){
+  const a=[E,LCA].filter(x=>x&&x.alerte).map(x=>`<span>${esc(x.alerte)}${x.alerteLien?` <a href="${esc(x.alerteLien)}" target="_blank" rel="noopener">Se reconnecter</a>`:""}</span>`);
+  $("alerte").innerHTML=a.join("");$("alerte").hidden=!a.length;
+}
+function appliquer(docs){
+  if(docs.edn&&!docs.edn.inchange&&docs.edn.data){E=docs.edn.data;V.edn=docs.edn.version;try{localStorage.setItem("carnet-edn",JSON.stringify(E))}catch(e){}}
+  if(docs.lca&&!docs.lca.inchange&&docs.lca.data){LCA=docs.lca.data;V.lca=docs.lca.version;try{localStorage.setItem("carnet-lca",JSON.stringify(LCA))}catch(e){}}
+  if(docs.state&&!docs.state.inchange&&docs.state.data&&!saveTimer){setState(docs.state.data);V.state=docs.state.version}
+  keepV();render();if(!$("picker").hidden)renderDay();alertes();
+}
+/* première ouverture : copie chiffrée du carnet Claude, envoyée une seule fois vers n8n */
+async function importer(){
+  try{
+    const r=await fetch("seed.enc",{cache:"no-store"});if(!r.ok)return false;
+    const raw=Uint8Array.from(atob((await r.text()).trim()),c=>c.charCodeAt(0));
+    const key=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",new TextEncoder().encode(CLE)),"AES-GCM",false,["decrypt"]);
+    const docs=JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv:raw.slice(0,12)},key,raw.slice(12))));
+    const res=await api({action:"import",docs});return !!res.ok;
+  }catch(e){return false}
+}
+let syncing=false;
+async function sync(first){
+  if(!CLE||syncing)return;syncing=true;
+  try{
+    let r=await api({action:"get",versions:first?{}:V});
+    if(!r.ok&&r.erreur==="cle"){try{localStorage.removeItem("carnet-cle")}catch(e){}CLE=null;ref=null;$("cleBox").hidden=false;$("saved").textContent=" · clé incorrecte";return}
+    if(r.vide){if(await importer()){toast("Ton carnet a été copié dans n8n.");r=await api({action:"get",versions:{}})}else if(state.courses.length){ref&&ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,updatedAt:new Date().toISOString()})}}
+    if(r.ok&&r.docs)appliquer(r.docs);
+    ref=REF;if(!saveTimer)$("saved").textContent=" · synchronisé";
+  }catch(e){$("saved").textContent=" · hors ligne, enregistré sur cet appareil"}
+  finally{syncing=false}
+}
+const REF={set:async(data)=>{
+  const r=await api({action:"save",version:V.state,data});
+  if(r.ok){V.state=r.version;keepV();return}
+  if(r.conflit&&r.state){setState(r.state.data);V.state=r.state.version;keepV();render();$("saved").textContent=" · rechargé (modifié sur un autre appareil)";toast("Ton carnet avait été modifié sur un autre appareil : la dernière version est rechargée.");return}
+  throw new Error(r.erreur||"échec");
+}};
+$("cleForm").onsubmit=e=>{e.preventDefault();const v=$("cleIn").value.trim();if(!v)return;CLE=v;try{localStorage.setItem("carnet-cle",v)}catch(e){}$("cleBox").hidden=true;sync(true)};
+alertes();
+if(!CLE){$("cleBox").hidden=false;$("saved").textContent=" · enregistré sur cet appareil"}
+else{ref=REF;sync(true)}
+setInterval(()=>{if(!document.hidden)sync(false)},60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync(false)});
 })();
 </script>
-</body>
-</html>
+
+</body></html>
