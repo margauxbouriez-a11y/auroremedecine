@@ -302,6 +302,26 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .fl-card .rang{font-family:var(--f-mono);font-weight:600;border-radius:4px;padding:0 5px;background:var(--marker);color:var(--marker-ink)}
 .fl-card .x{border:0;background:none;color:var(--muted);font-size:1.05rem;padding:0 2px}
 @media (max-width:480px){.tab{padding:6px 10px}}
+.lcab{display:inline-flex;margin-top:4px;padding:2px 9px;font-size:.76rem;border-radius:999px}
+.lcab.has{border-color:var(--accent);color:var(--accent)}
+.lfiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:480px){.lfiles{grid-template-columns:minmax(0,1fr)}}
+.lfile{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.lfstate{font-size:.84rem;min-height:1.4em;word-break:break-word}
+.lfstate button{border:0;background:none;color:var(--accent);font-weight:600;padding:0;text-align:left}
+.lfup{position:relative;text-align:center;font-size:.82rem}
+.lfup input{position:absolute;opacity:0;width:1px;height:1px}
+.lfup:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.lerrs{display:flex;flex-direction:column;gap:8px}
+.lerr{border:1px solid var(--line);border-left:4px solid var(--todo);border-radius:8px;padding:9px 11px;font-size:.86rem;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 8px}
+.lerr .q{font-weight:600}
+.lerr .x{border:0;background:none;color:var(--muted);font-size:1rem;grid-row:1;grid-column:2}
+.lerr div{grid-column:1}
+.lerr .mine{color:var(--todo)}
+.lerr .good{color:var(--done)}
+.lerrform{display:flex;flex-direction:column;gap:6px}
+.lerrform input,.lerrform textarea{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical}
+.lerrform .btn{align-self:flex-start}
 #printZone{display:none}
 @media print{
   @page{size:A4;margin:11mm}
@@ -525,6 +545,25 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
     <div class="drow" id="errBar"><span class="label" id="errPos"></span><span style="flex:1"></span><button class="btn" id="errMode" type="button">Tout afficher</button><button class="btn primary" id="errPdf" type="button">Imprimer (PDF)</button></div>
     <div id="errBody"></div>
     <div class="drow" id="errNav" style="justify-content:space-between"><button class="btn" id="errPrev" type="button">← Précédente</button><button class="btn primary" id="errShow" type="button">Voir la correction</button><button class="btn" id="errNext" type="button">Suivante →</button></div>
+  </div>
+</div>
+<div class="picker" id="lcaDlg" hidden>
+  <div class="panel dayp errp">
+    <div class="lhead"><h2 id="lcaDlgTitle">Article</h2><button class="btn ghost" id="lcaDlgClose" type="button">Fermer</button></div>
+    <div class="lfiles">
+      <div class="lfile"><div class="label">Sujet</div><div id="lfSujet" class="lfstate"></div><label class="btn lfup"><input type="file" id="lfSujetIn" accept="application/pdf,image/png,image/jpeg,image/webp"><span>Ajouter le sujet</span></label></div>
+      <div class="lfile"><div class="label">Correction</div><div id="lfCorr" class="lfstate"></div><label class="btn lfup"><input type="file" id="lfCorrIn" accept="application/pdf,image/png,image/jpeg,image/webp"><span>Ajouter la correction</span></label></div>
+    </div>
+    <p class="hint" id="lfMsg" style="margin:0">PDF ou photo, 10 Mo maximum. Les fichiers sont rangés dans le Google Drive du carnet et s'ouvrent depuis tous tes appareils.</p>
+    <div class="lhead dsec"><h2>Mes erreurs</h2><button class="btn" id="lerrReview" type="button">Relire mes erreurs</button></div>
+    <div id="lerrList" class="lerrs"></div>
+    <form id="lerrForm" class="lerrform">
+      <input type="text" id="lerrQ" placeholder="Question (ex. Q7, biais de sélection)" required aria-label="Question">
+      <textarea id="lerrMine" rows="2" placeholder="Ce que j'ai répondu ou oublié" aria-label="Ce que j'ai répondu"></textarea>
+      <textarea id="lerrGood" rows="2" placeholder="La bonne réponse (d'après la correction)" aria-label="Bonne réponse"></textarea>
+      <textarea id="lerrWhy" rows="2" placeholder="À retenir" aria-label="À retenir"></textarea>
+      <button class="btn primary" type="submit">Ajouter l'erreur</button>
+    </form>
   </div>
 </div>
 <button class="tfab" id="tFab" type="button" aria-label="Ouvrir le chrono et le minuteur">⏱<span id="tFabT"></span></button>
@@ -820,7 +859,7 @@ function renderLCA(){
     :'<div class="empty">Les fiches LCA One apparaîtront ici après la première synchronisation.</div>';
   const sorted=[...arts].sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   $("lcaRows").innerHTML=sorted.length?sorted.map(a=>{const p=parseScore(a.note);return `<tr data-lid="${a.id}">
-    <td><input type="text" id="la-n-${a.id}" data-lf="name" value="${esc(a.name)}" aria-label="Article">${a.url?`<div class="saved"><a href="${esc(a.url)}" target="_blank" rel="noopener">Correction LCA One</a></div>`:""}</td>
+    <td><input type="text" id="la-n-${a.id}" data-lf="name" value="${esc(a.name)}" aria-label="Article">${a.url?`<div class="saved"><a href="${esc(a.url)}" target="_blank" rel="noopener">Correction LCA One</a></div>`:""}<button type="button" class="btn lcab${a.sujet||a.corr||(a.errs&&a.errs.length)?" has":""}" data-lopen="${a.id}">Sujet · correction · erreurs${a.errs&&a.errs.length?" ("+a.errs.length+")":""}</button></td>
     <td><input type="date" id="la-d-${a.id}" data-lf="date" value="${esc(a.date||"")}" aria-label="Date"></td>
     <td><input type="text" id="la-s-${a.id}" data-lf="note" value="${esc(a.note||"")}" placeholder="ex. 14/20" aria-label="Note" style="width:7em">${p!=null?` <span class="score ${scoreCls(p)}">${p}%</span>`:""}</td>
     <td><button class="del" data-ldel="${a.id}" aria-label="Supprimer l'article">×</button></td></tr>`}).join("")
@@ -962,7 +1001,8 @@ $("cal").addEventListener("dragover",e=>{const d=e.target.closest(".day");if(d){
 $("cal").addEventListener("dragleave",e=>{const d=e.target.closest(".day");if(d)d.classList.remove("drop")});
 $("cal").addEventListener("drop",e=>{const d=e.target.closest(".day");if(!d)return;e.preventDefault();d.classList.remove("drop");const id=e.dataTransfer.getData("text/plain");if(state.courses.some(c=>c.id===id))place(id,d.dataset.date)});
 
-function ecard(e,show){const it=e.it.map(n=>"item "+n).join(", ");
+function ecard(e,show){const it=(e.it||[]).map(n=>"item "+n).join(", ");
+  if(e.meta)return `<div class="ecard"><div class="meta">${esc(e.meta)}</div><div class="q">${esc(e.q)}</div>${show?`${e.mine?`<div><div class="k">Ce que tu as fait</div><div class="mine">${esc(e.mine)}</div></div>`:""}${e.good?`<div><div class="k">Bonne réponse</div><div class="good">${esc(e.good)}</div></div>`:""}${e.why?`<div><div class="k">À retenir</div><div>${esc(e.why)}</div></div>`:""}`:'<div class="saved">Essaie de retrouver la bonne réponse, puis affiche la correction.</div>'}</div>`;
   return `<div class="ecard"><div class="meta">${esc(it)} · ${fmt(e.d)} · note ${e.g}/${e.mg}</div><div class="q">${esc(e.q)}</div>
   ${show?`<div><div class="k">Ce que tu as fait</div><div class="mine">${esc(e.mine)}</div></div><div><div class="k">Bonnes réponses</div><div class="good">${esc(e.good)}</div></div><div><div class="k">À retenir</div><div>${esc(e.why)}</div></div><a href="${esc(e.url)}" target="_blank" rel="noopener" class="saved">Voir la question et la correction sur EDN</a>`:'<div class="saved">Essaie de retrouver la bonne réponse, puis affiche la correction.</div>'}</div>`}
 function pdfTxt(s){return String(s||"").replace(/β/g,"bêta").replace(/[→]/g,"->").replace(/[≤]/g,"<=").replace(/[≥]/g,">=").replace(/[µμ]/g,"u").replace(/[  ]/g," ")}
@@ -973,14 +1013,14 @@ async function errPdf(){
   const need=h=>{if(y+h>297-M){doc.addPage();y=M}};
   const para=(txt,size,style,color,gap)=>{doc.setFont("helvetica",style);doc.setFontSize(size);doc.setTextColor(...color);const lines=doc.splitTextToSize(pdfTxt(txt),TW);for(const l of lines){need(size*0.42);doc.text(l,M,y);y+=size*0.42}y+=gap||0};
   para(r.title,16,"bold",[22,33,61],2);
-  para(r.list.length+" erreur"+(r.list.length>1?"s":"")+" · exporté le "+fmt(todayIso)+" · source EDN.fr",9,"normal",[93,103,130],5);
+  para(r.list.length+" erreur"+(r.list.length>1?"s":"")+" · exporté le "+fmt(todayIso)+(r.list[0]&&r.list[0].meta?" · LCA":" · source EDN.fr"),9,"normal",[93,103,130],5);
   r.list.forEach((e,i)=>{
     need(28);doc.setDrawColor(213,219,231);doc.line(M,y-2,W-M,y-2);y+=2;
     para((i+1)+". "+e.q,11,"bold",[22,33,61],1);
-    para(e.it.map(n=>"item "+n).join(", ")+" · "+fmt(e.d)+" · note "+e.g+"/"+e.mg,8.5,"normal",[93,103,130],2);
-    para("Ce que j'ai fait : "+e.mine,9.5,"normal",[200,55,45],1.5);
-    para("Bonnes réponses : "+e.good,9.5,"normal",[31,138,91],1.5);
-    para("À retenir : "+e.why,9.5,"normal",[22,33,61],5);
+    para(e.meta||((e.it||[]).map(n=>"item "+n).join(", ")+" · "+fmt(e.d)+" · note "+e.g+"/"+e.mg),8.5,"normal",[93,103,130],2);
+    if(e.mine)para("Ce que j'ai fait : "+e.mine,9.5,"normal",[200,55,45],1.5);
+    if(e.good)para("Bonnes réponses : "+e.good,9.5,"normal",[31,138,91],1.5);
+    if(e.why)para("À retenir : "+e.why,9.5,"normal",[22,33,61],5);else y+=3.5;
   });
   const blob=doc.output("blob");const name=("erreurs-"+r.title.replace(/^.*·\s*/,"")).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"-").replace(/-+/g,"-").toLowerCase()+".pdf";
   telecharger(name,blob);
@@ -1405,6 +1445,78 @@ $("flDl").onclick=()=>{
   telecharger(("Anki - "+flSetName(s)).replace(/[\\/:*?"<>|]/g," ").slice(0,90)+".txt",new Blob([txt],{type:"text/plain;charset=utf-8"}));
   $("flAnkiMsg").textContent="Fichier téléchargé : dans Anki, Fichier → Importer, puis choisis ce fichier.";
 };
+/* ---------- LCA : sujet, correction et erreurs par article ---------- */
+const FILE_API="https://margauxbouriez2.app.n8n.cloud/webhook/carnet-fichiers";
+const LF={id:null,blobs:{},busy:false};
+function lfArt(){return state.lca.find(a=>a.id===LF.id)||null}
+function lfErrObjs(a){return (a.errs||[]).map(x=>({q:x.q,mine:x.mine,good:x.good,why:x.why,d:x.d,meta:a.name+" · "+fmt(x.d)}))}
+function renderLfDlg(){
+  const a=lfArt();if(!a){$("lcaDlg").hidden=true;return}
+  $("lcaDlgTitle").textContent=a.name;
+  const st=(f,k)=>f?`<button type="button" data-lfopen="${k}">Ouvrir ${esc(f.nom)}</button>`:'<span style="color:var(--muted)">Aucun fichier</span>';
+  $("lfSujet").innerHTML=st(a.sujet,"sujet");$("lfCorr").innerHTML=st(a.corr,"corr");
+  $("lfSujetIn").nextElementSibling.textContent=a.sujet?"Remplacer le sujet":"Ajouter le sujet";
+  $("lfCorrIn").nextElementSibling.textContent=a.corr?"Remplacer la correction":"Ajouter la correction";
+  const E=a.errs||[];
+  $("lerrReview").hidden=!E.length;
+  $("lerrList").innerHTML=E.length?E.map((x,i)=>`<div class="lerr"><div class="q">${esc(x.q)}</div><button type="button" class="x" data-lerrrm="${i}" aria-label="Supprimer l'erreur">×</button>${x.mine?`<div class="mine">${esc(x.mine)}</div>`:""}${x.good?`<div class="good">${esc(x.good)}</div>`:""}${x.why?`<div>${esc(x.why)}</div>`:""}</div>`).join(""):'<div class="empty">Aucune erreur notée pour cet article.</div>';
+}
+function lfOpen(id){LF.id=id;$("lfMsg").textContent="PDF ou photo, 10 Mo maximum. Les fichiers sont rangés dans le Google Drive du carnet et s'ouvrent depuis tous tes appareils.";renderLfDlg();$("lcaDlg").hidden=false}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-lopen]");if(b)lfOpen(b.dataset.lopen)});
+$("lcaDlgClose").onclick=()=>{$("lcaDlg").hidden=true;render()};
+$("lcaDlg").onclick=e=>{if(e.target.id==="lcaDlg"){$("lcaDlg").hidden=true;render()}};
+async function lfUpload(kind,input){
+  const f=input.files[0];input.value="";const a=lfArt();if(!f||!a)return;
+  if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
+  if(!/^(application\/pdf|image\/(png|jpeg|webp))$/.test(f.type)){$("lfMsg").textContent="Ce format n'est pas accepté : choisis un PDF ou une photo (JPEG, PNG).";return}
+  if(f.size>10*1024*1024){$("lfMsg").textContent="Fichier trop lourd (10 Mo maximum).";return}
+  const label=kind==="sujet"?"sujet":"correction";
+  $("lfMsg").textContent="Envoi du "+label+"…";
+  try{
+    const data=await new Promise((ok,ko)=>{const r=new FileReader();r.onload=()=>ok(String(r.result));r.onerror=ko;r.readAsDataURL(f)});
+    const ext=(f.name.match(/\.[a-z0-9]+$/i)||[""])[0];
+    const r=await fetch(FILE_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({k:CLE,action:"upload",mime:f.type,nom:"Carnet LCA - "+a.name.slice(0,60)+" - "+(kind==="sujet"?"Sujet":"Correction")+ext,data})});
+    const j=await r.json();
+    if(!j.ok)throw new Error(j.erreur||"depot");
+    const g=state.lca.find(x=>x.id===a.id);if(!g)return;
+    g[kind]={id:j.id,nom:f.name.slice(0,80)};LF.blobs[j.id]=f;
+    save();render();renderLfDlg();$("lfMsg").textContent=(kind==="sujet"?"Sujet":"Correction")+" enregistré"+(kind==="sujet"?"":"e")+".";
+  }catch(err){$("lfMsg").textContent="L'envoi a échoué. Vérifie ta connexion et réessaie."}
+}
+$("lfSujetIn").onchange=()=>lfUpload("sujet",$("lfSujetIn"));
+$("lfCorrIn").onchange=()=>lfUpload("corr",$("lfCorrIn"));
+$("lcaDlg").addEventListener("click",async e=>{
+  const o=e.target.closest("[data-lfopen]");
+  if(o){
+    const a=lfArt();const f=a&&a[o.dataset.lfopen];if(!f)return;
+    const w=window.open("","_blank");
+    try{
+      let blob=LF.blobs[f.id];
+      if(!blob){
+        $("lfMsg").textContent="Ouverture…";
+        const r=await fetch(FILE_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({k:CLE,action:"get",id:f.id})});
+        if(!r.ok||/json/.test(r.headers.get("content-type")||""))throw new Error("get");
+        blob=LF.blobs[f.id]=await r.blob();
+      }
+      const u=URL.createObjectURL(blob);
+      if(w)w.location.href=u;else telecharger(f.nom,blob);
+      $("lfMsg").textContent="";
+    }catch(err){if(w)w.close();$("lfMsg").textContent="Le fichier n'a pas pu être ouvert. Réessaie dans un instant."}
+    return;
+  }
+  const rm=e.target.closest("[data-lerrrm]");
+  if(rm){const a=lfArt();if(!a)return;a.errs.splice(+rm.dataset.lerrrm,1);save();render();renderLfDlg();return}
+});
+$("lerrForm").onsubmit=e=>{
+  e.preventDefault();const a=lfArt();if(!a)return;
+  const q=$("lerrQ").value.trim();if(!q)return;
+  if(!Array.isArray(a.errs))a.errs=[];
+  a.errs.push({id:uid(),q,mine:$("lerrMine").value.trim(),good:$("lerrGood").value.trim(),why:$("lerrWhy").value.trim(),d:todayIso});
+  ["lerrQ","lerrMine","lerrGood","lerrWhy"].forEach(id=>$(id).value="");
+  save();render();renderLfDlg();$("lerrQ").focus();
+};
+$("lerrReview").onclick=()=>{const a=lfArt();if(!a||!(a.errs||[]).length)return;$("lcaDlg").hidden=true;openErrs("Erreurs LCA · "+a.name,lfErrObjs(a))};
+
 $("flCopy").onclick=async()=>{const t=$("flCfg").textContent;try{await navigator.clipboard.writeText(t);toast("Ligne copiée.")}catch(e){const r=document.createRange();r.selectNodeContents($("flCfg"));const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}};
 
 $("todayLbl").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
