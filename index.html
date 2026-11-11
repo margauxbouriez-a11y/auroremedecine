@@ -445,13 +445,13 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
           <label class="label" for="flDeck">Deck Anki</label>
           <div class="addrow"><input type="text" id="flDeck" autocomplete="off"><button class="btn primary" type="button" id="flSend">Envoyer dans Anki</button><button class="btn" type="button" id="flDl">Télécharger pour Anki</button></div>
           <p class="hint" id="flAnkiMsg"></p>
-          <details class="fl-help" id="flHelp"><summary>Configurer l'envoi direct dans Anki (une seule fois)</summary>
+          <details class="fl-help" id="flHelp"><summary>Installer le greffon Anki (une seule fois)</summary>
             <ol>
-              <li>Dans Anki sur ton ordinateur : <b>Cmd + Maj + A</b> (Outils → Greffons) → Acquérir des greffons, code <b class="num">2055492159</b> (AnkiConnect), puis quitte Anki (Cmd + Q) et rouvre-le.</li>
-              <li>Cmd + Maj + A, sélectionne <b>AnkiConnect</b> → <b>Configuration</b>. Clique sur « Restaurer les valeurs par défaut », puis remplace seulement la ligne qui contient <span class="num">"http://localhost"</span> (sous <span class="num">"webCorsOriginList": [</span>) par :<pre id="flCfg">"http://localhost", "https://margauxbouriez-a11y.github.io"</pre><button class="btn" type="button" id="flCopy">Copier la ligne</button> Ne touche ni aux crochets ni aux autres lignes, puis OK (sans message d'erreur).</li>
-              <li>Quitte Anki (Cmd + Q), rouvre-le et laisse-le ouvert, puis touche « Envoyer dans Anki ». Si le navigateur demande l'accès aux appareils du réseau local, accepte. Si Safari refuse, utilise Chrome.</li>
+              <li>Récupère le fichier <b>carnet-revisions.ankiaddon</b> que Claude t'a envoyé.</li>
+              <li>Dans Anki sur ton ordinateur : <b>Cmd + Maj + A</b> (Outils → Greffons) → <b>Installer à partir d'un fichier…</b>, choisis ce fichier, puis quitte Anki (Cmd + Q) et rouvre-le.</li>
+              <li>C'est tout : chaque « Envoyer dans Anki » arrive tout seul dans le paquet, à l'ouverture d'Anki puis toutes les 2 minutes. Les cartes déjà présentes ne sont pas ajoutées deux fois.</li>
             </ol>
-            <p>Sur téléphone, ou sans AnkiConnect : « Télécharger pour Anki » donne un fichier .txt à ouvrir avec Fichier → Importer dans Anki. Le deck, les cartes et les étiquettes sont reconnus automatiquement.</p>
+            <p>Sans le greffon : « Télécharger pour Anki » donne un fichier .txt à ouvrir avec Fichier → Importer dans Anki.</p>
           </details>
         </div>
         <div id="flCards" class="fl-cards"></div>
@@ -1431,34 +1431,21 @@ async function anki(action,params){
   const r=await fetch("http://127.0.0.1:8765",{method:"POST",body:JSON.stringify({action,version:6,params:params||{}})});
   const j=await r.json();if(j.error)throw new Error(j.error);return j.result;
 }
+const ANKI_API="https://margauxbouriez2.app.n8n.cloud/webhook/carnet-anki";
+/* les cartes partent dans une file d'attente n8n ; le greffon « Carnet de révisions → Anki » de l'ordinateur vient les chercher */
 $("flSend").onclick=async()=>{
   const s=flCur();if(!s)return;
-  let deck=$("flDeck").value.trim()||flDefaultDeck(s);s.deck=deck;
+  if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
+  const deck=$("flDeck").value.trim()||flDefaultDeck(s);s.deck=deck;
   const cards=s.cards.filter(c=>!c.off);if(!cards.length){$("flAnkiMsg").textContent="Aucune carte cochée.";return}
-  const btn=$("flSend");btn.disabled=true;$("flAnkiMsg").textContent="Connexion à Anki…";
+  const btn=$("flSend");btn.disabled=true;$("flAnkiMsg").textContent="Envoi…";
   try{
-    const models=await anki("modelNames");
-    const m=["Basic","Basique","Basic (and reversed card)","Basique (et carte inversée)"].find(x=>models.includes(x));
-    if(!m)throw new Error("modele");
-    const fields=await anki("modelFieldNames",{modelName:m});
-    /* retrouve le paquet existant même si son nom est écrit un peu autrement (EDN 2024::Mes cartes, edn 2024 - mes cartes…) */
-    const norm=x=>String(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-    const existant=(await anki("deckNames")).find(d=>norm(d)===norm(deck));
-    if(existant)deck=existant;else await anki("createDeck",{deck});
-    const notes=cards.map(c=>({deckName:deck,modelName:m,fields:{[fields[0]]:flFront(s,c),[fields[1]]:flBack(s,c)},tags:flTags(s,c),options:{allowDuplicate:false,duplicateScope:"deck"}}));
-    const ok=await anki("canAddNotes",{notes});
-    const neuves=notes.filter((n,i)=>ok[i]);
-    if(neuves.length)await anki("addNotes",{notes:neuves});
+    const r=await fetch(ANKI_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({k:CLE,action:"push",deck,cartes:cards.map(c=>({front:flFront(s,c),back:flBack(s,c),tags:flTags(s,c)}))})});
+    const j=await r.json();if(!j.ok)throw new Error(j.erreur||"envoi");
     s.sent=new Date().toISOString();save();renderFlash();
-    $("flAnkiMsg").textContent=`${neuves.length} carte${neuves.length>1?"s":""} ajoutée${neuves.length>1?"s":""} dans « ${deck} »`+(notes.length>neuves.length?` · ${notes.length-neuves.length} déjà présente${notes.length-neuves.length>1?"s":""}, ignorée${notes.length-neuves.length>1?"s":""}`:"")+".";
-  }catch(err){
-    if(err&&err.message==="modele")$("flAnkiMsg").textContent="Anki n'a pas de type de note « Basique ». Utilise « Télécharger pour Anki » à la place.";
-    else{
-      /* Anki est-il ouvert ? une requête « opaque » passe même si le site n'est pas encore autorisé */
-      let ouvert=false;try{await fetch("http://127.0.0.1:8765",{method:"POST",mode:"no-cors",body:"{}"});ouvert=true}catch(e2){}
-      $("flAnkiMsg").textContent=ouvert?"Anki est ouvert mais refuse encore ce site : termine la configuration d'AnkiConnect (étape 2 ci-dessous), quitte Anki avec Cmd + Q et rouvre-le.":"Anki ne répond pas : vérifie qu'Anki est ouvert sur cet ordinateur avec AnkiConnect installé. Si c'est le cas et que tu es sur Safari, essaie avec Chrome, ou utilise « Télécharger pour Anki ».";
-      $("flHelp").open=true}
-  }finally{btn.disabled=false}
+    $("flAnkiMsg").textContent=`${j.ajoutees} carte${j.ajoutees>1?"s":""} envoyée${j.ajoutees>1?"s":""}. Elles arrivent dans « ${deck} » dès qu'Anki est ouvert sur ton ordinateur (vérification toutes les 2 minutes, ou tout de suite avec Outils → Récupérer les cartes du carnet).`;
+  }catch(err){$("flAnkiMsg").textContent="L'envoi a échoué. Vérifie ta connexion et réessaie."}
+  finally{btn.disabled=false}
 };
 $("flDl").onclick=()=>{
   const s=flCur();if(!s)return;
@@ -1541,7 +1528,6 @@ $("lerrForm").onsubmit=e=>{
 };
 $("lerrReview").onclick=()=>{const a=lfArt();if(!a||!(a.errs||[]).length)return;$("lcaDlg").hidden=true;openErrs("Erreurs LCA · "+a.name,lfErrObjs(a))};
 
-$("flCopy").onclick=async()=>{const t=$("flCfg").textContent;try{await navigator.clipboard.writeText(t);toast("Ligne copiée.")}catch(e){const r=document.createRange();r.selectNodeContents($("flCfg"));const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}};
 
 $("todayLbl").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 $("dows").innerHTML=["L","M","M","J","V","S","D"].map(d=>`<div class="dow">${d}</div>`).join("");
