@@ -234,6 +234,57 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .alerte a{color:inherit;font-weight:700}
 .clebox{display:flex;flex-direction:column;gap:8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* Fiches : liste à gauche, feuille A4 (toujours papier blanc) à droite */
+.fcgrid{display:grid;grid-template-columns:minmax(0,330px) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.fcgrid{grid-template-columns:minmax(0,1fr)}}
+.fc-form select{border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:var(--surface);color:var(--ink);font:inherit}
+.fc-form button:disabled,#fcAdd:disabled,.fc-chips button:disabled,#fcPrint:disabled,#fcDel:disabled{opacity:.5;cursor:default}
+.fc-list{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto}
+.fc-item{display:flex;gap:8px;align-items:center;text-align:left;padding:7px 9px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-size:.86rem}
+.fc-item:hover{border-color:var(--accent)}
+.fc-item.on{border-color:var(--accent);background:var(--accent-soft)}
+.fc-item .nm2{flex:1;min-width:0}
+.fc-item .num{font-size:.72rem;color:var(--muted)}
+.fc-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.fc-actions{display:flex;gap:6px;flex-wrap:wrap}
+.fc-chips{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%}
+.fc-chips button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:.78rem}
+.fc-chips button:hover{border-color:var(--accent)}
+.fc-scroll{overflow-x:auto;margin-top:14px}
+.fc-sheet{background:#fff;color:#16213d;max-width:794px;margin:0 auto;padding:30px 34px 24px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,.08),0 8px 24px rgba(22,33,61,.12);font-size:12.5px;line-height:1.45;font-family:var(--f-body);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.fc-head{display:block;border-bottom:2.5px solid #2747c9;padding-bottom:7px;margin-bottom:11px}
+.fc-kick{font-family:var(--f-mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#5d6782}
+.fc-title{font-family:var(--f-display);font-size:22px;line-height:1.15;color:#16213d;margin-top:3px}
+.fc-def{margin:0 0 10px;padding:8px 10px;background:#e3e8fb;border-left:3px solid #2747c9}
+.fc-blk{margin:0 0 10px;break-inside:avoid}
+.fc-blk h3{font-family:var(--f-body);font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#2747c9;margin:0 0 4px}
+.fc-blk ul{margin:0;padding-left:16px}
+.fc-blk li{margin:0 0 2px}
+.fc-blk li::marker{color:#2747c9}
+.fc-tab{width:100%;min-width:0;border-collapse:collapse;font-size:11.5px}
+.fc-tab th{background:#2747c9;color:#fff;text-align:left;padding:4px 6px;font-weight:600;border:1px solid #2747c9;vertical-align:top}
+.fc-tab td{border:1px solid #d5dbe7;padding:4px 6px;vertical-align:top}
+.fc-tab th:last-child,.fc-tab td:last-child{border-right:1px solid #d5dbe7}
+.fc-tab tr:nth-child(even) td{background:#f5f7fb}
+.fc-tab td:first-child{font-weight:600}
+.fc-alert{border:1.5px solid #c8372d;background:#fbe3e1;border-radius:4px;padding:7px 10px}
+.fc-alert h3{color:#c8372d}
+.fc-alert li::marker{color:#c8372d}
+.fc-mnemo{border:1px dashed #2747c9;border-radius:4px;padding:6px 10px;background:#fdf8d4}
+.fc-foot{margin-top:12px;padding-top:6px;border-top:1px solid #d5dbe7;font-size:9.5px;color:#5d6782;display:flex;justify-content:space-between;gap:10px}
+.fc-wait,.fc-empty{display:flex;align-items:center;gap:10px;color:#5d6782;padding:36px 4px;font-size:13px}
+.fc-spin{width:16px;height:16px;flex:none;border:2px solid #d5dbe7;border-top-color:#2747c9;border-radius:50%;animation:fcspin .8s linear infinite}
+@keyframes fcspin{to{transform:rotate(360deg)}}
+@media (max-width:560px){.fc-sheet{padding:20px 16px;font-size:12px}.fc-title{font-size:19px}}
+#printZone{display:none}
+@media print{
+  @page{size:A4;margin:11mm}
+  body.print-fiche{background:#fff;padding:0}
+  body.print-fiche>*:not(#printZone){display:none!important}
+  body.print-fiche #printZone{display:block}
+  body.print-fiche .fc-sheet{box-shadow:none;max-width:none;padding:0;border-radius:0}
+}
 </style>
 
 <div class="wrap">
@@ -247,7 +298,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
     <div>
       <div class="label">Révisions · <span id="todayLbl"></span></div>
       <h1>Carnet de révisions</h1>
-      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button></div> <span class="saved" id="hypoUpd"></span>
+      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button><button class="tab" role="tab" data-mode="fiches">Fiches</button></div> <span class="saved" id="hypoUpd"></span>
     </div>
     <div class="stats">
       <div class="stat"><div class="label" id="lSeen">Items terminés (3 révisions)</div><div class="v"><span id="sSeen">0</span><small>/<span id="sTotal">0</span></small></div></div>
@@ -282,6 +333,40 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
         </div>
         <form class="addrow" id="lcaForm"><input type="text" id="lcaNew" placeholder="Autre article (nom ou titre)" required><button class="btn" type="submit">Ajouter</button></form>
         <p class="hint">Note : écris-la comme tu veux (14/20, 72, 72 %). Un article compte comme fait dès qu'il a une date.</p>
+      </section>
+    </div>
+  </section>
+
+  <section id="fichesView" hidden>
+    <div class="fcgrid">
+      <section class="panel">
+        <h2>Nouvelle fiche</h2>
+        <form class="addrow fc-form" id="fcForm">
+          <input type="text" id="fcNotion" list="fcItems" placeholder="Notion ou item (ex. syndrome de Wallenberg)" autocomplete="off" required aria-label="Notion ou item">
+          <select id="fcPages" aria-label="Longueur de la fiche"><option value="1">1 page</option><option value="2">2 pages</option></select>
+          <button class="btn primary" id="fcGo" type="submit">Générer</button>
+        </form>
+        <datalist id="fcItems"></datalist>
+        <p class="hint" id="fcStatus">Claude rédige une fiche A4 en 20 à 40 secondes. Tes fiches sont enregistrées dans le carnet, sur tous tes appareils.</p>
+        <div class="lhead" style="margin-top:16px"><h2>Mes fiches</h2><span class="label num" id="fcN"></span></div>
+        <div class="fc-list" id="fcList"></div>
+      </section>
+      <section class="panel">
+        <div class="fc-bar">
+          <h2>Fiche</h2>
+          <div class="fc-actions">
+            <button class="btn" type="button" id="fcStop" hidden>Arrêter</button>
+            <button class="btn" type="button" id="fcDel">Supprimer</button>
+            <button class="btn primary" type="button" id="fcPrint">Imprimer</button>
+          </div>
+        </div>
+        <form class="addrow" id="fcMore" hidden>
+          <input type="text" id="fcExtra" placeholder="Compléter : ex. ajoute les posologies du traitement" autocomplete="off" required aria-label="Informations à ajouter">
+          <button class="btn" id="fcAdd" type="submit">Ajouter</button>
+          <div class="fc-chips" id="fcChips"></div>
+        </form>
+        <div class="fc-scroll"><article class="fc-sheet" id="fcSheet"></article></div>
+        <p class="hint">Fiche générée par IA : vérifie les doses et les seuils avec ton collège.</p>
       </section>
     </div>
   </section>
@@ -387,6 +472,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
   <div class="tbtns"><button class="btn primary" id="tGo" type="button">Démarrer</button><button class="btn" id="tReset" type="button">Réinitialiser</button></div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<div id="printZone"></div>
 
 <script>
 (function(){
@@ -442,6 +528,7 @@ function canon(s){s=String(s).trim();for(const c of state.courses)for(const m of
 function dedupe(list){const out=[];for(const s of list)if(!out.some(o=>norm(o)===norm(s)))out.push(s);return out}
 function migrate(){
   if(!Array.isArray(state.lca))state.lca=[];
+  if(!Array.isArray(state.fiches))state.fiches=[];
   if(!Array.isArray(state.events))state.events=[];
   for(const c of state.courses){
     if(!Array.isArray(c.subjects))c.subjects=c.subject?[c.subject]:[];
@@ -498,7 +585,7 @@ function save(){
   if(!ref){$("saved").textContent=" · enregistré sur cet appareil";return}
   clearTimeout(saveTimer);$("saved").textContent=" · enregistrement…";
   saveTimer=setTimeout(async()=>{
-    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
+    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
     catch(e){$("saved").textContent=" · échec de l'enregistrement, réessaie"}
     finally{saveTimer=null}
   },800);
@@ -515,9 +602,9 @@ function grouped(list){
   return out;
 }
 function render(){
-  const L=mode==="lca";
-  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L);$("lcaView").hidden=!L;
-  if(L){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;renderLCA();return}
+  const L=mode==="lca",F=mode==="fiches";
+  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L||F);$("lcaView").hidden=!L;$("fichesView").hidden=!F;
+  if(L||F){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;if(L)renderLCA();else renderFiches();return}
   $("lNext").textContent="Prévues à venir";
   const all=state.courses.map(c=>({c,...stats(c)}));
   if(exam!=="all"&&!examOf(exam))exam="all";
@@ -992,6 +1079,99 @@ if(T.dur)$("tMin").value=Math.floor(T.dur/60000),$("tSec").value=Math.round(T.du
 setInterval(tRender,250);tRender();
 
 /* ---------- démarrage ---------- */
+/* ---------- fiches de révision (rédigées par Claude via n8n) ---------- */
+const FICHE_API="https://margauxbouriez2.app.n8n.cloud/webhook/carnet-fiche";
+const FC={cur:null,busy:false,ctl:null,delArm:0};
+function fmd(s){return esc(String(s==null?"":s)).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>")}
+function ficheTitle(f){const t=(f.blocks||[]).find(b=>b.type==="titre");return (t&&t.titre)||f.notion||"Fiche"}
+function ficheBlock(b){
+  const ul=p=>`<ul>${(p||[]).map(x=>`<li>${fmd(x)}</li>`).join("")}</ul>`;
+  switch(b.type){
+    case "definition":return `<p class="fc-def fc-blk">${fmd(b.texte)}</p>`;
+    case "section":return `<section class="fc-blk"><h3>${esc(b.titre||"")}</h3>${ul(b.points)}</section>`;
+    case "tableau":return `<section class="fc-blk"><h3>${esc(b.titre||"")}</h3><table class="fc-tab"><thead><tr>${(b.colonnes||[]).map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${(b.lignes||[]).map(r=>`<tr>${(r||[]).map(c=>`<td>${fmd(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></section>`;
+    case "urgences":return `<section class="fc-blk fc-alert"><h3>${esc(b.titre||"Urgences et pièges")}</h3>${ul(b.points)}</section>`;
+    case "mnemo":return `<section class="fc-blk fc-mnemo"><b>Moyen mnémotechnique :</b> ${fmd(b.texte)}</section>`;
+    default:return "";
+  }
+}
+function ficheHTML(f){
+  const t=(f.blocks||[]).find(b=>b.type==="titre")||{};
+  return `<header class="fc-head"><div class="fc-kick">${esc(t.matiere||"Fiche de révision")}</div><h2 class="fc-title">${esc(t.titre||f.notion||"")}</h2></header>${(f.blocks||[]).map(ficheBlock).join("")}<footer class="fc-foot"><span>Carnet de révisions · fiche générée par IA, à vérifier avec le collège</span><span>${new Date(f.d).toLocaleDateString("fr-FR")}</span></footer>`;
+}
+function ficheCur(){return state.fiches.find(x=>x.id===FC.cur)||null}
+function renderFiches(){
+  const L=state.fiches;
+  if(!ficheCur())FC.cur=L.length?L[0].id:null;
+  $("fcN").textContent=L.length?L.length+" fiche"+(L.length>1?"s":""):"";
+  $("fcList").innerHTML=L.length?L.map(f=>`<button type="button" class="fc-item${FC.cur===f.id?" on":""}" data-fiche="${esc(f.id)}"><span class="nm2">${esc(ficheTitle(f))}</span><span class="num">${new Date(f.d).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</span></button>`).join(""):'<div class="empty">Tes fiches apparaîtront ici.</div>';
+  $("fcItems").innerHTML=state.courses.map(c=>`<option value="${esc(label(c))}"></option>`).join("");
+  const f=ficheCur();
+  $("fcPrint").disabled=$("fcDel").disabled=!f||FC.busy;$("fcMore").hidden=!f;
+  if(FC.busy)return;
+  $("fcSheet").innerHTML=f?ficheHTML(f):'<div class="fc-empty">Écris une notion ou choisis un item, puis touche Générer. La fiche apparaît ici, prête à imprimer.</div>';
+}
+function ficheBusy(b,msg,notion){
+  FC.busy=b;$("fcGo").disabled=$("fcAdd").disabled=b;$("fcStop").hidden=!b;
+  document.querySelectorAll("#fcChips button").forEach(x=>x.disabled=b);
+  renderFiches();
+  if(b){$("fcStatus").textContent=msg;$("fcSheet").innerHTML=`<div class="fc-wait"><span class="fc-spin"></span>${esc(msg)} (20 à 40 secondes)</div>`}
+}
+async function ficheCall(body,msg){
+  if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return null}
+  if(FC.busy)return null;
+  const ctl=new AbortController();FC.ctl=ctl;const to=setTimeout(()=>ctl.abort(),170000);
+  ficheBusy(true,msg);
+  try{
+    const r=await fetch(FICHE_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),signal:ctl.signal,cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(j&&j.ok&&Array.isArray(j.blocks))return j.blocks;
+    $("fcStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée : reformule-la."):"La fiche n'a pas pu être rédigée. Réessaie dans un instant.";
+    return null;
+  }catch(e){$("fcStatus").textContent=e&&e.name==="AbortError"?"Génération arrêtée. Ta fiche précédente est conservée.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie.";return null}
+  finally{clearTimeout(to);FC.ctl=null;ficheBusy(false)}
+}
+$("fcForm").onsubmit=async e=>{
+  e.preventDefault();const notion=$("fcNotion").value.trim();if(!notion||FC.busy)return;
+  const pages=$("fcPages").value;
+  const blocks=await ficheCall({notion,pages},"Claude rédige ta fiche sur « "+notion+" »…");
+  if(!blocks)return;
+  const f={id:"f"+Date.now().toString(36),notion,pages,blocks,d:new Date().toISOString()};
+  state.fiches.unshift(f);if(state.fiches.length>60)state.fiches.length=60;
+  FC.cur=f.id;$("fcNotion").value="";
+  $("fcStatus").textContent="Fiche prête et enregistrée dans ton carnet. Complète-la ou imprime-la.";
+  renderFiches();save();
+};
+async function ficheAdd(extra){
+  const f=ficheCur();if(!f||!extra||FC.busy)return;
+  const id=f.id;
+  const blocks=await ficheCall({extra,blocks:f.blocks,pages:f.pages||"1"},"Claude complète ta fiche…");
+  if(!blocks)return;
+  const g=state.fiches.find(x=>x.id===id);if(!g)return;
+  g.blocks=blocks;g.d=new Date().toISOString();FC.cur=id;$("fcExtra").value="";
+  $("fcStatus").textContent="Fiche complétée et enregistrée.";
+  renderFiches();save();
+}
+$("fcMore").onsubmit=e=>{e.preventDefault();ficheAdd($("fcExtra").value.trim())};
+$("fcChips").innerHTML=["Posologies du traitement","Examens complémentaires","Diagnostics différentiels","Complications","Tableau comparatif","Moyen mnémotechnique","Points clés pour l'ECOS"].map(t=>`<button type="button" data-add="${esc(t)}">+ ${esc(t)}</button>`).join("");
+$("fcChips").onclick=e=>{const b=e.target.closest("[data-add]");if(b)ficheAdd("Ajoute : "+b.dataset.add.toLowerCase())};
+$("fcList").onclick=e=>{const b=e.target.closest("[data-fiche]");if(!b||FC.busy)return;FC.cur=b.dataset.fiche;renderFiches();if(window.innerWidth<900)$("fcSheet").scrollIntoView({behavior:"smooth",block:"start"})};
+$("fcStop").onclick=()=>{if(FC.ctl)FC.ctl.abort()};
+$("fcDel").onclick=()=>{
+  const f=ficheCur();if(!f)return;
+  if(Date.now()-FC.delArm>4000){FC.delArm=Date.now();$("fcDel").textContent="Confirmer la suppression";setTimeout(()=>{$("fcDel").textContent="Supprimer"},4000);return}
+  FC.delArm=0;$("fcDel").textContent="Supprimer";
+  state.fiches=state.fiches.filter(x=>x.id!==f.id);FC.cur=null;renderFiches();save();toast("Fiche supprimée.");
+};
+$("fcPrint").onclick=()=>{
+  const f=ficheCur();if(!f)return;
+  $("printZone").innerHTML=`<article class="fc-sheet">${ficheHTML(f)}</article>`;
+  document.body.classList.add("print-fiche");
+  setTimeout(()=>window.print(),50);
+};
+window.addEventListener("afterprint",()=>{document.body.classList.remove("print-fiche");$("printZone").innerHTML=""});
+
 $("todayLbl").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 $("dows").innerHTML=["L","M","M","J","V","S","D"].map(d=>`<div class="dow">${d}</div>`).join("");
 try{const raw=localStorage.getItem("carnet-revisions");if(raw)state=JSON.parse(raw)}catch(e){}
@@ -1008,7 +1188,7 @@ async function api(body){
   const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),cache:"no-store"});
   if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }
-function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[]))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
+function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[]))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
 function alertes(){
   const a=[E,LCA].filter(x=>x&&x.alerte).map(x=>`<span>${esc(x.alerte)}${x.alerteLien?` <a href="${esc(x.alerteLien)}" target="_blank" rel="noopener">Se reconnecter</a>`:""}</span>`);
   $("alerte").innerHTML=a.join("");$("alerte").hidden=!a.length;
