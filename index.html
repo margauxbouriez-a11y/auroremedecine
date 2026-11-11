@@ -297,6 +297,8 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .fl-card.off{opacity:.45}
 .fl-card input{margin:3px 0 0;accent-color:var(--accent)}
 .fl-card .q{font-weight:600}
+.fl-sel{flex:1 1 100%;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 8px;background:var(--surface);color:var(--ink);font:inherit}
+.fl-card .r.styled{background:#fff;color:#16213d;border:1px solid var(--line);border-radius:6px;padding:6px 9px;margin-top:4px}
 .fl-card .r{grid-column:2;color:var(--ink);font-size:.9rem;border-top:1px dashed var(--line);padding-top:6px}
 .fl-card .meta{grid-column:2;font-size:.72rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap}
 .fl-card .rang{font-family:var(--f-mono);font-weight:600;border-radius:4px;padding:0 5px;background:var(--marker);color:var(--marker-ink)}
@@ -423,6 +425,8 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
         <form id="flForm" class="fl-form">
           <label class="label" for="flItem">Item</label>
           <div class="addrow fc-form"><input type="text" id="flItem" list="flItems" placeholder="N° de l'item (ex. 103)" autocomplete="off" required><select id="flNb" aria-label="Nombre de cartes"><option value="20">20 cartes</option><option value="30" selected>30 cartes</option><option value="40">40 cartes</option></select></div>
+          <label class="label" for="flStyle">Style des cartes</label>
+          <div class="addrow"><select id="flStyle" class="fl-sel"><option value="fiche">Comme mes cartes EDN 2024 (en couleurs)</option><option value="qa">Questions-réponses courtes</option></select></div>
           <datalist id="flItems"></datalist>
           <label class="label" for="flCol">Collège</label>
           <div class="addrow"><input type="text" id="flCol" list="flCols" placeholder="Ex. Neurologie" autocomplete="off"></div>
@@ -1285,7 +1289,15 @@ function flCur(){return state.flash.find(x=>x.id===FLS.cur)||null}
 function flSetName(s){return (s.item?"Item "+s.item:"")+(s.titre?(s.item?" · ":"")+s.titre:"")}
 function flHtml(s){return esc(String(s==null?"":s)).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>")}
 function flCourse(n){return state.courses.find(c=>(String(c.item||"").match(/\d+/g)||[]).includes(String(n)))||null}
-function flDefaultDeck(s){return "EDN::"+(s.college?s.college.replace(/::/g," ")+"::":"")+("Item "+(s.item||"")+(s.titre?" - "+s.titre:"")).trim()}
+const FL_DECK="EDN 2024 - Mes cartes";
+function flDefaultDeck(s){try{return localStorage.getItem("carnet-anki-deck")||FL_DECK}catch(e){return FL_DECK}}
+/* verso au style « Mes cartes » : **rouge gras**, [[vert]], {{bleu}}, _italique_, une ligne par point, « 1) » en gras */
+function flStyled(t){
+  const inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,'<font color="#ff0000"><b>$1</b></font>').replace(/\[\[(.+?)\]\]/g,'<font color="#00aa00">$1</font>').replace(/\{\{(.+?)\}\}/g,'<font color="#0000ff">$1</font>').replace(/(^|[\s(=:,])_(\S(?:.*?\S)?)_(?=$|[\s).,;:])/g,'$1<i>$2</i>');
+  return String(t||"").split(/\n+/).map(l=>{l=l.trim();if(!l)return "";const m=l.match(/^(\d+\))\s*(.*)$/);return "<div>"+(m?"<b>"+m[1]+"</b> "+inl(m[2]):inl(l))+"</div>"}).join("");
+}
+function flBack(s,c){return s.style==="fiche"?flStyled(c.r):flHtml(c.r)}
+function flFront(s,c){return s.style==="fiche"?esc(c.q):flHtml(c.q)}
 function renderFlash(){
   const L=state.flash;
   if(!flCur())FLS.cur=L.length?L[0].id:null;
@@ -1299,7 +1311,7 @@ function renderFlash(){
   $("flTitle").textContent=s?flSetName(s):"Cartes";
   if(!s){$("flCards").innerHTML='<div class="fc-empty" style="color:var(--muted)">Indique un numéro d\'item, ajoute si possible le PDF du collège, puis touche Générer les cartes.</div>';return}
   if(document.activeElement!==$("flDeck"))$("flDeck").value=s.deck||flDefaultDeck(s);
-  $("flCards").innerHTML=`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flHtml(c.q)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r">${flHtml(c.r)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
+  $("flCards").innerHTML=`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flFront(s,c)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
 }
 function flBusy(b,msg){
   FLS.busy=b;$("flGo").disabled=b;$("flStop").hidden=!b;renderFlash();
@@ -1382,12 +1394,13 @@ $("flForm").onsubmit=async e=>{
       src=`d'après ${FLS.file}, pages ${p1} à ${p2}`;
       flProgress(`Chapitre trouvé (pages ${p1} à ${p2}). Claude rédige les cartes…`);
     }
-    const j=await flCall({item:n,titre,college,nombre:$("flNb").value,texte});
+    const style=$("flStyle").value;try{localStorage.setItem("carnet-fl-style",style)}catch(e){}
+    const j=await flCall({item:n,titre,college,nombre:$("flNb").value,texte,style});
     if(!(j&&j.ok&&Array.isArray(j.cartes))){
       $("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée.")+(texte?` Vérifie les pages du chapitre ci-dessus (pages ${$("flP1").value} à ${$("flP2").value} envoyées) : corrige la dernière page, puis relance.`:""):"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.";
       return;
     }
-    const s={id:"k"+Date.now().toString(36),item:n,titre,college,src,d:new Date().toISOString(),cards:j.cartes};
+    const s={id:"k"+Date.now().toString(36),item:n,titre,college,src,style,d:new Date().toISOString(),cards:j.cartes};
     s.deck=flDefaultDeck(s);
     state.flash.unshift(s);if(state.flash.length>40)state.flash.length=40;
     FLS.cur=s.id;
@@ -1402,7 +1415,8 @@ $("flStop").onclick=()=>{if(FLS.ctl)FLS.ctl.abort()};
 $("flList").onclick=e=>{const b=e.target.closest("[data-flash]");if(!b||FLS.busy)return;FLS.cur=b.dataset.flash;$("flAnkiMsg").textContent="";renderFlash();if(window.innerWidth<900)$("flTitle").scrollIntoView({behavior:"smooth",block:"start"})};
 $("flCards").onchange=e=>{const i=e.target.dataset.flkeep;const s=flCur();if(i==null||!s)return;s.cards[+i].off=!e.target.checked;renderFlash();save()};
 $("flCards").onclick=e=>{const b=e.target.closest("[data-flrm]");const s=flCur();if(!b||!s)return;s.cards.splice(+b.dataset.flrm,1);renderFlash();save()};
-$("flDeck").onchange=()=>{const s=flCur();if(!s)return;s.deck=$("flDeck").value.trim()||flDefaultDeck(s);save()};
+$("flDeck").onchange=()=>{const s=flCur();if(!s)return;const v=$("flDeck").value.trim();if(v)try{localStorage.setItem("carnet-anki-deck",v)}catch(e){}s.deck=v||flDefaultDeck(s);save()};
+try{const st=localStorage.getItem("carnet-fl-style");if(st)$("flStyle").value=st}catch(e){}
 $("flDel").onclick=()=>{
   const s=flCur();if(!s)return;
   if(Date.now()-FLS.delArm>4000){FLS.delArm=Date.now();$("flDel").textContent="Confirmer la suppression";setTimeout(()=>{$("flDel").textContent="Supprimer le paquet"},4000);return}
@@ -1419,7 +1433,7 @@ async function anki(action,params){
 }
 $("flSend").onclick=async()=>{
   const s=flCur();if(!s)return;
-  const deck=$("flDeck").value.trim()||flDefaultDeck(s);s.deck=deck;
+  let deck=$("flDeck").value.trim()||flDefaultDeck(s);s.deck=deck;
   const cards=s.cards.filter(c=>!c.off);if(!cards.length){$("flAnkiMsg").textContent="Aucune carte cochée.";return}
   const btn=$("flSend");btn.disabled=true;$("flAnkiMsg").textContent="Connexion à Anki…";
   try{
@@ -1427,8 +1441,11 @@ $("flSend").onclick=async()=>{
     const m=["Basic","Basique","Basic (and reversed card)","Basique (et carte inversée)"].find(x=>models.includes(x));
     if(!m)throw new Error("modele");
     const fields=await anki("modelFieldNames",{modelName:m});
-    await anki("createDeck",{deck});
-    const notes=cards.map(c=>({deckName:deck,modelName:m,fields:{[fields[0]]:flHtml(c.q),[fields[1]]:flHtml(c.r)},tags:flTags(s,c),options:{allowDuplicate:false,duplicateScope:"deck"}}));
+    /* retrouve le paquet existant même si son nom est écrit un peu autrement (EDN 2024::Mes cartes, edn 2024 - mes cartes…) */
+    const norm=x=>String(x).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+    const existant=(await anki("deckNames")).find(d=>norm(d)===norm(deck));
+    if(existant)deck=existant;else await anki("createDeck",{deck});
+    const notes=cards.map(c=>({deckName:deck,modelName:m,fields:{[fields[0]]:flFront(s,c),[fields[1]]:flBack(s,c)},tags:flTags(s,c),options:{allowDuplicate:false,duplicateScope:"deck"}}));
     const ok=await anki("canAddNotes",{notes});
     const neuves=notes.filter((n,i)=>ok[i]);
     if(neuves.length)await anki("addNotes",{notes:neuves});
@@ -1442,8 +1459,8 @@ $("flSend").onclick=async()=>{
 $("flDl").onclick=()=>{
   const s=flCur();if(!s)return;
   const deck=$("flDeck").value.trim()||flDefaultDeck(s);
-  const cell=x=>flHtml(x).replace(/\t/g," ");
-  const lignes=s.cards.filter(c=>!c.off).map(c=>[cell(c.q),cell(c.r),flTags(s,c).join(" ")].join("\t"));
+  const cell=x=>x.replace(/\t/g," ");
+  const lignes=s.cards.filter(c=>!c.off).map(c=>[cell(flFront(s,c)),cell(flBack(s,c)),flTags(s,c).join(" ")].join("\t"));
   const txt=["#separator:tab","#html:true","#deck:"+deck,"#tags column:3"].concat(lignes).join("\n")+"\n";
   telecharger(("Anki - "+flSetName(s)).replace(/[\\/:*?"<>|]/g," ").slice(0,90)+".txt",new Blob([txt],{type:"text/plain;charset=utf-8"}));
   $("flAnkiMsg").textContent="Fichier téléchargé : dans Anki, Fichier → Importer, puis choisis ce fichier.";
