@@ -1341,11 +1341,13 @@ async function flFindChapter(n){
       if(re.test(head)&&new Set([...t.matchAll(any)].map(m=>+m[1])).size<=3)start=p;
       continue;
     }
+    /* un nouveau chapitre = un autre numéro d'item en haut de page ET les rubriques d'ouverture d'un chapitre */
     const autres=[...head.matchAll(any)].map(m=>+m[1]).filter(x=>x!==+n);
-    if(autres.length&&!re.test(head)){end=p-1;break}
-    if(p-start>=35){end=p;break}
+    const ouverture=/objectifs\s+p[ée]dagogiques|situations?\s+de\s+d[ée]part|hi[ée]rarchisation\s+des\s+connaissances/i.test(t.slice(0,2500));
+    if(p>start+1&&autres.length&&!re.test(head)&&ouverture){end=p-1;break}
+    if(p-start>=50){end=p;break}
   }
-  if(start&&!end)end=Math.min(N,start+35);
+  if(start&&!end)end=Math.min(N,start+50);
   return start?[start,end]:null;
 }
 async function flCall(body){
@@ -1373,6 +1375,7 @@ $("flForm").onsubmit=async e=>{
         [p1,p2]=r;$("flP1").value=p1;$("flP2").value=p2;$("flPagesRow").hidden=false;
       }
       p2=Math.min(p2,FLS.doc.numPages,p1+60);
+      if(p2-p1<5)flProgress(`Le chapitre semble court (pages ${p1} à ${p2}). Si c'est trop peu, corrige la dernière page.`);
       const parts=[];for(let p=p1;p<=p2;p++)parts.push(`[page ${p}]\n`+await flPageText(p));
       texte=parts.join("\n\n").slice(0,150000);
       if(texte.replace(/\[page \d+\]|\s/g,"").length<800){$("flStatus").textContent="Ces pages ne contiennent presque pas de texte (PDF scanné ?). Essaie sans PDF ou avec un autre fichier.";return}
@@ -1381,7 +1384,7 @@ $("flForm").onsubmit=async e=>{
     }
     const j=await flCall({item:n,titre,college,nombre:$("flNb").value,texte});
     if(!(j&&j.ok&&Array.isArray(j.cartes))){
-      $("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée."):"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.";
+      $("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée.")+(texte?` Vérifie les pages du chapitre ci-dessus (pages ${$("flP1").value} à ${$("flP2").value} envoyées) : corrige la dernière page, puis relance.`:""):"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.";
       return;
     }
     const s={id:"k"+Date.now().toString(36),item:n,titre,college,src,d:new Date().toISOString(),cards:j.cartes};
