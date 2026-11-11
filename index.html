@@ -1290,8 +1290,8 @@ function flSetName(s){return (s.item?"Item "+s.item:"")+(s.titre?(s.item?" · ":
 function flHtml(s){return esc(String(s==null?"":s)).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>")}
 function flCourse(n){return state.courses.find(c=>(String(c.item||"").match(/\d+/g)||[]).includes(String(n)))||null}
 const FL_DECK="EDN 2024 - Mes cartes";
-/* un sous-paquet par item : EDN 2024::Apprentissage::Item 131 - Troubles de la marche et chutes */
-function flDefaultDeck(s){const t=String(s.titre||"").replace(/::/g," ").replace(/\s+/g," ").trim();return "EDN 2024::Apprentissage::Item "+(s.item||"?")+(t?" - "+t:"")}
+/* un sous-paquet par item : EDN 2024 - Mes cartes::Apprentissage::Item 131 - Troubles de la marche… */
+function flDefaultDeck(s){const t=String(s.titre||"").replace(/::/g," ").replace(/\s+/g," ").trim();return "EDN 2024 - Mes cartes::Apprentissage::Item "+(s.item||"?")+(t?" - "+t:"")}
 /* verso au style « Mes cartes » : **rouge gras**, [[vert]], {{bleu}}, _italique_, une ligne par point, « 1) » en gras */
 function flStyled(t){
   const inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,'<font color="#ff0000"><b>$1</b></font>').replace(/\[\[(.+?)\]\]/g,'<font color="#00aa00">$1</font>').replace(/\{\{(.+?)\}\}/g,'<font color="#0000ff">$1</font>').replace(/(^|[\s(=:,])_(\S(?:.*?\S)?)_(?=$|[\s).,;:])/g,'$1<i>$2</i>');
@@ -1311,7 +1311,7 @@ function renderFlash(){
   if(FLS.busy)return;
   $("flTitle").textContent=s?flSetName(s):"Cartes";
   if(!s){$("flCards").innerHTML='<div class="fc-empty" style="color:var(--muted)">Indique un numéro d\'item, ajoute si possible le PDF du collège, puis touche Générer les cartes.</div>';return}
-  if(!s.deck||/^EDN::|^EDN 2024 - Mes cartes$/i.test(s.deck))s.deck=flDefaultDeck(s);
+  if(!s.deck||/^EDN::|^EDN 2024 - Mes cartes$|^EDN 2024::Apprentissage::/i.test(s.deck))s.deck=flDefaultDeck(s);
   if(document.activeElement!==$("flDeck"))$("flDeck").value=s.deck;
   $("flCards").innerHTML=`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flFront(s,c)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
 }
