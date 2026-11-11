@@ -447,9 +447,9 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
           <p class="hint" id="flAnkiMsg"></p>
           <details class="fl-help" id="flHelp"><summary>Configurer l'envoi direct dans Anki (une seule fois)</summary>
             <ol>
-              <li>Dans Anki sur ton ordinateur : Outils → Extensions → Obtenir des extensions, code <b class="num">2055492159</b> (AnkiConnect), puis redémarre Anki.</li>
-              <li>Outils → Extensions → AnkiConnect → Configuration, et remplace la ligne <span class="num">"webCorsOriginList"</span> par :<pre id="flCfg">"webCorsOriginList": ["http://localhost", "https://margauxbouriez-a11y.github.io"],</pre><button class="btn" type="button" id="flCopy">Copier la ligne</button></li>
-              <li>Redémarre Anki, laisse-le ouvert, puis touche « Envoyer dans Anki ». Si le navigateur demande l'accès aux appareils du réseau local, accepte.</li>
+              <li>Dans Anki sur ton ordinateur : <b>Cmd + Maj + A</b> (Outils → Greffons) → Acquérir des greffons, code <b class="num">2055492159</b> (AnkiConnect), puis quitte Anki (Cmd + Q) et rouvre-le.</li>
+              <li>Cmd + Maj + A, sélectionne <b>AnkiConnect</b> → <b>Configuration</b>. Clique sur « Restaurer les valeurs par défaut », puis remplace seulement la ligne qui contient <span class="num">"http://localhost"</span> (sous <span class="num">"webCorsOriginList": [</span>) par :<pre id="flCfg">"http://localhost", "https://margauxbouriez-a11y.github.io"</pre><button class="btn" type="button" id="flCopy">Copier la ligne</button> Ne touche ni aux crochets ni aux autres lignes, puis OK (sans message d'erreur).</li>
+              <li>Quitte Anki (Cmd + Q), rouvre-le et laisse-le ouvert, puis touche « Envoyer dans Anki ». Si le navigateur demande l'accès aux appareils du réseau local, accepte. Si Safari refuse, utilise Chrome.</li>
             </ol>
             <p>Sur téléphone, ou sans AnkiConnect : « Télécharger pour Anki » donne un fichier .txt à ouvrir avec Fichier → Importer dans Anki. Le deck, les cartes et les étiquettes sont reconnus automatiquement.</p>
           </details>
@@ -1453,7 +1453,11 @@ $("flSend").onclick=async()=>{
     $("flAnkiMsg").textContent=`${neuves.length} carte${neuves.length>1?"s":""} ajoutée${neuves.length>1?"s":""} dans « ${deck} »`+(notes.length>neuves.length?` · ${notes.length-neuves.length} déjà présente${notes.length-neuves.length>1?"s":""}, ignorée${notes.length-neuves.length>1?"s":""}`:"")+".";
   }catch(err){
     if(err&&err.message==="modele")$("flAnkiMsg").textContent="Anki n'a pas de type de note « Basique ». Utilise « Télécharger pour Anki » à la place.";
-    else{$("flAnkiMsg").textContent="Anki ne répond pas. Ouvre Anki sur cet ordinateur avec AnkiConnect configuré (voir ci-dessous), ou utilise « Télécharger pour Anki ».";$("flHelp").open=true}
+    else{
+      /* Anki est-il ouvert ? une requête « opaque » passe même si le site n'est pas encore autorisé */
+      let ouvert=false;try{await fetch("http://127.0.0.1:8765",{method:"POST",mode:"no-cors",body:"{}"});ouvert=true}catch(e2){}
+      $("flAnkiMsg").textContent=ouvert?"Anki est ouvert mais refuse encore ce site : termine la configuration d'AnkiConnect (étape 2 ci-dessous), quitte Anki avec Cmd + Q et rouvre-le.":"Anki ne répond pas : vérifie qu'Anki est ouvert sur cet ordinateur avec AnkiConnect installé. Si c'est le cas et que tu es sur Safari, essaie avec Chrome, ou utilise « Télécharger pour Anki ».";
+      $("flHelp").open=true}
   }finally{btn.disabled=false}
 };
 $("flDl").onclick=()=>{
