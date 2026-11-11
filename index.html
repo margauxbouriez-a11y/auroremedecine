@@ -277,6 +277,31 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .fc-spin{width:16px;height:16px;flex:none;border:2px solid #d5dbe7;border-top-color:#2747c9;border-radius:50%;animation:fcspin .8s linear infinite}
 @keyframes fcspin{to{transform:rotate(360deg)}}
 @media (max-width:560px){.fc-sheet{padding:20px 16px;font-size:12px}.fc-title{font-size:19px}}
+.fl-form{display:flex;flex-direction:column;gap:4px;margin-top:10px}
+.fl-form .label{margin-top:8px}
+.fl-form .addrow{margin-top:2px}
+.fl-file{display:flex;flex-direction:column;gap:4px;margin-top:12px;padding:12px;border:1.5px dashed var(--line);border-radius:10px;cursor:pointer;font-size:.82rem;color:var(--muted)}
+.fl-file:hover,.fl-file:focus-within{border-color:var(--accent)}
+.fl-file input{position:absolute;opacity:0;width:1px;height:1px}
+.fl-fbtn{font-weight:600;color:var(--accent);font-size:.9rem}
+.fl-pages{margin-top:8px;font-size:.85rem}
+.fl-pages input{width:5.5em;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font-family:var(--f-mono)}
+.fl-anki{margin-top:10px;padding:12px;border-radius:10px;background:var(--accent-soft)}
+.fl-anki .addrow{margin-top:4px}
+.fl-help{font-size:.82rem;margin-top:6px}
+.fl-help summary{cursor:pointer;color:var(--accent);font-weight:600}
+.fl-help ol{padding-left:18px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
+.fl-help pre{white-space:pre-wrap;word-break:break-all;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;margin:6px 0;font-family:var(--f-mono);font-size:.76rem}
+.fl-cards{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.fl-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:start;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface)}
+.fl-card.off{opacity:.45}
+.fl-card input{margin:3px 0 0;accent-color:var(--accent)}
+.fl-card .q{font-weight:600}
+.fl-card .r{grid-column:2;color:var(--ink);font-size:.9rem;border-top:1px dashed var(--line);padding-top:6px}
+.fl-card .meta{grid-column:2;font-size:.72rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap}
+.fl-card .rang{font-family:var(--f-mono);font-weight:600;border-radius:4px;padding:0 5px;background:var(--marker);color:var(--marker-ink)}
+.fl-card .x{border:0;background:none;color:var(--muted);font-size:1.05rem;padding:0 2px}
+@media (max-width:480px){.tab{padding:6px 10px}}
 #printZone{display:none}
 @media print{
   @page{size:A4;margin:11mm}
@@ -298,7 +323,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
     <div>
       <div class="label">Révisions · <span id="todayLbl"></span></div>
       <h1>Carnet de révisions</h1>
-      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button><button class="tab" role="tab" data-mode="fiches">Fiches</button></div> <span class="saved" id="hypoUpd"></span>
+      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button><button class="tab" role="tab" data-mode="fiches">Fiches</button><button class="tab" role="tab" data-mode="flash">Flashcards</button></div> <span class="saved" id="hypoUpd"></span>
     </div>
     <div class="stats">
       <div class="stat"><div class="label" id="lSeen">Items terminés (3 révisions)</div><div class="v"><span id="sSeen">0</span><small>/<span id="sTotal">0</span></small></div></div>
@@ -367,6 +392,45 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
         </form>
         <div class="fc-scroll"><article class="fc-sheet" id="fcSheet"></article></div>
         <p class="hint">Fiche générée par IA : vérifie les doses et les seuils avec ton collège.</p>
+      </section>
+    </div>
+  </section>
+
+  <section id="flashView" hidden>
+    <div class="fcgrid">
+      <section class="panel">
+        <h2>Nouvelles flashcards</h2>
+        <form id="flForm" class="fl-form">
+          <label class="label" for="flItem">Item</label>
+          <div class="addrow fc-form"><input type="text" id="flItem" list="flItems" placeholder="N° de l'item (ex. 103)" autocomplete="off" required><select id="flNb" aria-label="Nombre de cartes"><option value="20">20 cartes</option><option value="30" selected>30 cartes</option><option value="40">40 cartes</option></select></div>
+          <datalist id="flItems"></datalist>
+          <label class="label" for="flCol">Collège</label>
+          <div class="addrow"><input type="text" id="flCol" list="flCols" placeholder="Ex. Neurologie" autocomplete="off"></div>
+          <datalist id="flCols"></datalist>
+          <label class="fl-file" for="flPdf"><input type="file" id="flPdf" accept="application/pdf"><span class="fl-fbtn">Choisir le PDF du collège</span><span id="flPdfName">Recommandé : les cartes viennent alors du chapitre de l'item</span></label>
+          <div class="drow fl-pages" id="flPagesRow" hidden><span>Pages du chapitre</span><input type="number" id="flP1" min="1" aria-label="Première page"><span>à</span><input type="number" id="flP2" min="1" aria-label="Dernière page"></div>
+          <div class="addrow"><button class="btn primary" id="flGo" type="submit">Générer les cartes</button><button class="btn" type="button" id="flStop" hidden>Arrêter</button></div>
+        </form>
+        <p class="hint" id="flStatus">Sans PDF, Claude s'appuie sur ses connaissances du référentiel. Avec le PDF du collège, il retrouve le chapitre de l'item et n'utilise que lui.</p>
+        <div class="lhead" style="margin-top:16px"><h2>Mes paquets</h2><span class="label num" id="flN"></span></div>
+        <div class="fc-list" id="flList"></div>
+      </section>
+      <section class="panel">
+        <div class="fc-bar"><h2 id="flTitle">Cartes</h2><div class="fc-actions"><button class="btn" type="button" id="flDel">Supprimer le paquet</button></div></div>
+        <div id="flAnki" class="fl-anki" hidden>
+          <label class="label" for="flDeck">Deck Anki</label>
+          <div class="addrow"><input type="text" id="flDeck" autocomplete="off"><button class="btn primary" type="button" id="flSend">Envoyer dans Anki</button><button class="btn" type="button" id="flDl">Télécharger pour Anki</button></div>
+          <p class="hint" id="flAnkiMsg"></p>
+          <details class="fl-help" id="flHelp"><summary>Configurer l'envoi direct dans Anki (une seule fois)</summary>
+            <ol>
+              <li>Dans Anki sur ton ordinateur : Outils → Extensions → Obtenir des extensions, code <b class="num">2055492159</b> (AnkiConnect), puis redémarre Anki.</li>
+              <li>Outils → Extensions → AnkiConnect → Configuration, et remplace la ligne <span class="num">"webCorsOriginList"</span> par :<pre id="flCfg">"webCorsOriginList": ["http://localhost", "https://margauxbouriez-a11y.github.io"],</pre><button class="btn" type="button" id="flCopy">Copier la ligne</button></li>
+              <li>Redémarre Anki, laisse-le ouvert, puis touche « Envoyer dans Anki ». Si le navigateur demande l'accès aux appareils du réseau local, accepte.</li>
+            </ol>
+            <p>Sur téléphone, ou sans AnkiConnect : « Télécharger pour Anki » donne un fichier .txt à ouvrir avec Fichier → Importer dans Anki. Le deck, les cartes et les étiquettes sont reconnus automatiquement.</p>
+          </details>
+        </div>
+        <div id="flCards" class="fl-cards"></div>
       </section>
     </div>
   </section>
@@ -529,6 +593,7 @@ function dedupe(list){const out=[];for(const s of list)if(!out.some(o=>norm(o)==
 function migrate(){
   if(!Array.isArray(state.lca))state.lca=[];
   if(!Array.isArray(state.fiches))state.fiches=[];
+  if(!Array.isArray(state.flash))state.flash=[];
   if(!Array.isArray(state.events))state.events=[];
   for(const c of state.courses){
     if(!Array.isArray(c.subjects))c.subjects=c.subject?[c.subject]:[];
@@ -585,7 +650,7 @@ function save(){
   if(!ref){$("saved").textContent=" · enregistré sur cet appareil";return}
   clearTimeout(saveTimer);$("saved").textContent=" · enregistrement…";
   saveTimer=setTimeout(async()=>{
-    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
+    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,flash:state.flash,updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
     catch(e){$("saved").textContent=" · échec de l'enregistrement, réessaie"}
     finally{saveTimer=null}
   },800);
@@ -602,9 +667,9 @@ function grouped(list){
   return out;
 }
 function render(){
-  const L=mode==="lca",F=mode==="fiches";
-  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L||F);$("lcaView").hidden=!L;$("fichesView").hidden=!F;
-  if(L||F){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;if(L)renderLCA();else renderFiches();return}
+  const L=mode==="lca",F=mode==="fiches",FL=mode==="flash";
+  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L||F||FL);$("lcaView").hidden=!L;$("fichesView").hidden=!F;$("flashView").hidden=!FL;
+  if(L||F||FL){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;if(L)renderLCA();else if(F)renderFiches();else renderFlash();return}
   $("lNext").textContent="Prévues à venir";
   const all=state.courses.map(c=>({c,...stats(c)}));
   if(exam!=="all"&&!examOf(exam))exam="all";
@@ -1172,6 +1237,176 @@ $("fcPrint").onclick=()=>{
 };
 window.addEventListener("afterprint",()=>{document.body.classList.remove("print-fiche");$("printZone").innerHTML=""});
 
+/* ---------- flashcards (rédigées par Claude via n8n, export Anki) ---------- */
+const FLASH_API="https://margauxbouriez2.app.n8n.cloud/webhook/carnet-flashcards";
+const PDFJS="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+const FLS={cur:null,busy:false,ctl:null,doc:null,file:"",pages:{},delArm:0};
+function flCur(){return state.flash.find(x=>x.id===FLS.cur)||null}
+function flSetName(s){return (s.item?"Item "+s.item:"")+(s.titre?(s.item?" · ":"")+s.titre:"")}
+function flHtml(s){return esc(String(s==null?"":s)).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>")}
+function flCourse(n){return state.courses.find(c=>(String(c.item||"").match(/\d+/g)||[]).includes(String(n)))||null}
+function flDefaultDeck(s){return "EDN::"+(s.college?s.college.replace(/::/g," ")+"::":"")+("Item "+(s.item||"")+(s.titre?" - "+s.titre:"")).trim()}
+function renderFlash(){
+  const L=state.flash;
+  if(!flCur())FLS.cur=L.length?L[0].id:null;
+  $("flN").textContent=L.length?L.length+" paquet"+(L.length>1?"s":""):"";
+  $("flList").innerHTML=L.length?L.map(s=>`<button type="button" class="fc-item${FLS.cur===s.id?" on":""}" data-flash="${esc(s.id)}"><span class="nm2">${esc(flSetName(s))}</span><span class="num">${s.cards.filter(c=>!c.off).length} cartes${s.sent?" · Anki ✓":""}</span></button>`).join(""):'<div class="empty">Tes paquets de cartes apparaîtront ici.</div>';
+  $("flItems").innerHTML=state.courses.filter(c=>c.item).map(c=>`<option value="${esc(String(c.item).match(/\d+/)[0])}">${esc(label(c))}</option>`).join("");
+  $("flCols").innerHTML=subjects().map(m=>`<option value="${esc(m)}"></option>`).join("");
+  const s=flCur();
+  $("flAnki").hidden=!s||FLS.busy;$("flDel").hidden=!s||FLS.busy;
+  if(FLS.busy)return;
+  $("flTitle").textContent=s?flSetName(s):"Cartes";
+  if(!s){$("flCards").innerHTML='<div class="fc-empty" style="color:var(--muted)">Indique un numéro d\'item, ajoute si possible le PDF du collège, puis touche Générer les cartes.</div>';return}
+  if(document.activeElement!==$("flDeck"))$("flDeck").value=s.deck||flDefaultDeck(s);
+  $("flCards").innerHTML=`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flHtml(c.q)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r">${flHtml(c.r)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
+}
+function flBusy(b,msg){
+  FLS.busy=b;$("flGo").disabled=b;$("flStop").hidden=!b;renderFlash();
+  if(b){$("flStatus").textContent=msg;$("flCards").innerHTML=`<div class="fc-wait" style="color:var(--muted)"><span class="fc-spin"></span><span id="flWait">${esc(msg)}</span></div>`;$("flTitle").textContent="Cartes"}
+}
+function flProgress(msg){$("flStatus").textContent=msg;const w=$("flWait");if(w)w.textContent=msg}
+async function flLoadPdfJs(){
+  if(window.pdfjsLib)return window.pdfjsLib;
+  await new Promise((ok,ko)=>{const s=document.createElement("script");s.src=PDFJS+"pdf.min.js";s.onload=ok;s.onerror=ko;document.head.appendChild(s)});
+  const w=await (await fetch(PDFJS+"pdf.worker.min.js")).text();
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([w],{type:"text/javascript"}));
+  return window.pdfjsLib;
+}
+async function flPageText(p){
+  if(FLS.pages[p]!=null)return FLS.pages[p];
+  const c=await (await FLS.doc.getPage(p)).getTextContent();
+  return FLS.pages[p]=c.items.map(i=>i.str+(i.hasEOL?"\n":" ")).join("").replace(/[ \t]+/g," ");
+}
+$("flPdf").onchange=async()=>{
+  const f=$("flPdf").files[0];if(!f)return;
+  FLS.doc=null;FLS.pages={};FLS.file=f.name;$("flPagesRow").hidden=true;$("flP1").value=$("flP2").value="";
+  $("flPdfName").textContent="Ouverture de "+f.name+"…";
+  try{
+    const lib=await flLoadPdfJs();
+    FLS.doc=await lib.getDocument({data:await f.arrayBuffer()}).promise;
+    $("flPdfName").textContent=f.name+" · "+FLS.doc.numPages+" pages";
+    if(!$("flCol").value.trim())$("flCol").value=f.name.replace(/\.pdf$/i,"").replace(/[_-]+/g," ").replace(/\bcoll[eè]ge\b/i,"").trim().slice(0,60);
+  }catch(e){FLS.doc=null;$("flPdfName").textContent="Ce fichier n'a pas pu être lu. Vérifie que c'est bien un PDF."}
+};
+/* retrouve le chapitre de l'item : une page qui commence par « Item N », jusqu'à la page qui commence par un autre item */
+async function flFindChapter(n){
+  const re=new RegExp("\\bitem\\s*(?:n°\\s*)?0*"+n+"\\b","i"),any=/\bitem\s*(?:n°\s*)?(\d{1,3})\b/gi;
+  let start=0,end=0;const N=FLS.doc.numPages;
+  for(let p=1;p<=N;p++){
+    if(FLS.ctl&&FLS.ctl.signal.aborted)throw new DOMException("stop","AbortError");
+    if(p%15===0)flProgress(`Recherche de l'item ${n} dans le collège : page ${p} sur ${N}…`);
+    const t=await flPageText(p),head=t.slice(0,350);
+    if(!start){
+      if(re.test(head)&&new Set([...t.matchAll(any)].map(m=>+m[1])).size<=3)start=p;
+      continue;
+    }
+    const autres=[...head.matchAll(any)].map(m=>+m[1]).filter(x=>x!==+n);
+    if(autres.length&&!re.test(head)){end=p-1;break}
+    if(p-start>=35){end=p;break}
+  }
+  if(start&&!end)end=Math.min(N,start+35);
+  return start?[start,end]:null;
+}
+async function flCall(body){
+  const r=await fetch(FLASH_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),signal:FLS.ctl.signal,cache:"no-store"});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return r.json();
+}
+$("flForm").onsubmit=async e=>{
+  e.preventDefault();if(FLS.busy)return;
+  if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
+  const n=(String($("flItem").value).match(/\d+/)||[])[0];
+  if(!n){$("flStatus").textContent="Indique le numéro de l'item, par exemple 103.";return}
+  const c=flCourse(n);
+  const titre=c?c.name:"";
+  const college=$("flCol").value.trim()||(c&&c.subjects[0])||"";
+  FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),200000);
+  flBusy(true,FLS.doc?"Lecture du collège…":"Claude rédige les cartes de l'item "+n+"…");
+  let texte="",src="d'après les connaissances du référentiel";
+  try{
+    if(FLS.doc){
+      let p1=+$("flP1").value,p2=+$("flP2").value;
+      if(!(p1>0&&p2>=p1)){
+        const r=await flFindChapter(n);
+        if(!r){$("flPagesRow").hidden=false;$("flStatus").textContent=`Item ${n} introuvable dans ce PDF. Indique les pages du chapitre, puis relance.`;return}
+        [p1,p2]=r;$("flP1").value=p1;$("flP2").value=p2;$("flPagesRow").hidden=false;
+      }
+      p2=Math.min(p2,FLS.doc.numPages,p1+60);
+      const parts=[];for(let p=p1;p<=p2;p++)parts.push(`[page ${p}]\n`+await flPageText(p));
+      texte=parts.join("\n\n").slice(0,150000);
+      if(texte.replace(/\[page \d+\]|\s/g,"").length<800){$("flStatus").textContent="Ces pages ne contiennent presque pas de texte (PDF scanné ?). Essaie sans PDF ou avec un autre fichier.";return}
+      src=`d'après ${FLS.file}, pages ${p1} à ${p2}`;
+      flProgress(`Chapitre trouvé (pages ${p1} à ${p2}). Claude rédige les cartes…`);
+    }
+    const j=await flCall({item:n,titre,college,nombre:$("flNb").value,texte});
+    if(!(j&&j.ok&&Array.isArray(j.cartes))){
+      $("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée."):"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.";
+      return;
+    }
+    const s={id:"k"+Date.now().toString(36),item:n,titre,college,src,d:new Date().toISOString(),cards:j.cartes};
+    s.deck=flDefaultDeck(s);
+    state.flash.unshift(s);if(state.flash.length>40)state.flash.length=40;
+    FLS.cur=s.id;
+    $("flStatus").textContent=`${j.cartes.length} cartes prêtes. Relis-les, puis envoie-les dans Anki.`;
+    save();
+  }catch(err){
+    $("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie.";
+  }finally{clearTimeout(to);FLS.ctl=null;flBusy(false)}
+};
+$("flItem").oninput=()=>{const n=(String($("flItem").value).match(/\d+/)||[])[0];const c=n&&flCourse(n);if(c&&c.subjects[0]&&!FLS.doc)$("flCol").value=c.subjects[0];$("flP1").value=$("flP2").value=""};
+$("flStop").onclick=()=>{if(FLS.ctl)FLS.ctl.abort()};
+$("flList").onclick=e=>{const b=e.target.closest("[data-flash]");if(!b||FLS.busy)return;FLS.cur=b.dataset.flash;$("flAnkiMsg").textContent="";renderFlash();if(window.innerWidth<900)$("flTitle").scrollIntoView({behavior:"smooth",block:"start"})};
+$("flCards").onchange=e=>{const i=e.target.dataset.flkeep;const s=flCur();if(i==null||!s)return;s.cards[+i].off=!e.target.checked;renderFlash();save()};
+$("flCards").onclick=e=>{const b=e.target.closest("[data-flrm]");const s=flCur();if(!b||!s)return;s.cards.splice(+b.dataset.flrm,1);renderFlash();save()};
+$("flDeck").onchange=()=>{const s=flCur();if(!s)return;s.deck=$("flDeck").value.trim()||flDefaultDeck(s);save()};
+$("flDel").onclick=()=>{
+  const s=flCur();if(!s)return;
+  if(Date.now()-FLS.delArm>4000){FLS.delArm=Date.now();$("flDel").textContent="Confirmer la suppression";setTimeout(()=>{$("flDel").textContent="Supprimer le paquet"},4000);return}
+  FLS.delArm=0;$("flDel").textContent="Supprimer le paquet";
+  state.flash=state.flash.filter(x=>x.id!==s.id);FLS.cur=null;renderFlash();save();toast("Paquet supprimé.");
+};
+function flTags(s,c){
+  const t=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").replace(/^_+|_+$/g,"");
+  return ["EDN","Item_"+s.item,s.college&&t(s.college),c.rang&&"Rang_"+c.rang,c.theme&&t(c.theme)].filter(Boolean);
+}
+async function anki(action,params){
+  const r=await fetch("http://127.0.0.1:8765",{method:"POST",body:JSON.stringify({action,version:6,params:params||{}})});
+  const j=await r.json();if(j.error)throw new Error(j.error);return j.result;
+}
+$("flSend").onclick=async()=>{
+  const s=flCur();if(!s)return;
+  const deck=$("flDeck").value.trim()||flDefaultDeck(s);s.deck=deck;
+  const cards=s.cards.filter(c=>!c.off);if(!cards.length){$("flAnkiMsg").textContent="Aucune carte cochée.";return}
+  const btn=$("flSend");btn.disabled=true;$("flAnkiMsg").textContent="Connexion à Anki…";
+  try{
+    const models=await anki("modelNames");
+    const m=["Basic","Basique","Basic (and reversed card)","Basique (et carte inversée)"].find(x=>models.includes(x));
+    if(!m)throw new Error("modele");
+    const fields=await anki("modelFieldNames",{modelName:m});
+    await anki("createDeck",{deck});
+    const notes=cards.map(c=>({deckName:deck,modelName:m,fields:{[fields[0]]:flHtml(c.q),[fields[1]]:flHtml(c.r)},tags:flTags(s,c),options:{allowDuplicate:false,duplicateScope:"deck"}}));
+    const ok=await anki("canAddNotes",{notes});
+    const neuves=notes.filter((n,i)=>ok[i]);
+    if(neuves.length)await anki("addNotes",{notes:neuves});
+    s.sent=new Date().toISOString();save();renderFlash();
+    $("flAnkiMsg").textContent=`${neuves.length} carte${neuves.length>1?"s":""} ajoutée${neuves.length>1?"s":""} dans « ${deck} »`+(notes.length>neuves.length?` · ${notes.length-neuves.length} déjà présente${notes.length-neuves.length>1?"s":""}, ignorée${notes.length-neuves.length>1?"s":""}`:"")+".";
+  }catch(err){
+    if(err&&err.message==="modele")$("flAnkiMsg").textContent="Anki n'a pas de type de note « Basique ». Utilise « Télécharger pour Anki » à la place.";
+    else{$("flAnkiMsg").textContent="Anki ne répond pas. Ouvre Anki sur cet ordinateur avec AnkiConnect configuré (voir ci-dessous), ou utilise « Télécharger pour Anki ».";$("flHelp").open=true}
+  }finally{btn.disabled=false}
+};
+$("flDl").onclick=()=>{
+  const s=flCur();if(!s)return;
+  const deck=$("flDeck").value.trim()||flDefaultDeck(s);
+  const cell=x=>flHtml(x).replace(/\t/g," ");
+  const lignes=s.cards.filter(c=>!c.off).map(c=>[cell(c.q),cell(c.r),flTags(s,c).join(" ")].join("\t"));
+  const txt=["#separator:tab","#html:true","#deck:"+deck,"#tags column:3"].concat(lignes).join("\n")+"\n";
+  telecharger(("Anki - "+flSetName(s)).replace(/[\\/:*?"<>|]/g," ").slice(0,90)+".txt",new Blob([txt],{type:"text/plain;charset=utf-8"}));
+  $("flAnkiMsg").textContent="Fichier téléchargé : dans Anki, Fichier → Importer, puis choisis ce fichier.";
+};
+$("flCopy").onclick=async()=>{const t=$("flCfg").textContent;try{await navigator.clipboard.writeText(t);toast("Ligne copiée.")}catch(e){const r=document.createRange();r.selectNodeContents($("flCfg"));const sel=getSelection();sel.removeAllRanges();sel.addRange(r)}};
+
 $("todayLbl").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
 $("dows").innerHTML=["L","M","M","J","V","S","D"].map(d=>`<div class="dow">${d}</div>`).join("");
 try{const raw=localStorage.getItem("carnet-revisions");if(raw)state=JSON.parse(raw)}catch(e){}
@@ -1188,7 +1423,7 @@ async function api(body){
   const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),cache:"no-store"});
   if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }
-function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[]))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
+function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[])),flash:JSON.parse(JSON.stringify(d.flash||[]))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
 function alertes(){
   const a=[E,LCA].filter(x=>x&&x.alerte).map(x=>`<span>${esc(x.alerte)}${x.alerteLien?` <a href="${esc(x.alerteLien)}" target="_blank" rel="noopener">Se reconnecter</a>`:""}</span>`);
   $("alerte").innerHTML=a.join("");$("alerte").hidden=!a.length;
