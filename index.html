@@ -246,6 +246,23 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .fc-item.on{border-color:var(--accent);background:var(--accent-soft)}
 .fc-item .nm2{flex:1;min-width:0}
 .fc-item .num{font-size:.72rem;color:var(--muted)}
+.ecard .q,.ecard .mine,.ecard .good{white-space:pre-line}
+.qz{display:flex;flex-direction:column;gap:12px}
+.qz-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:.84rem;color:var(--muted)}
+.qz-q{font-weight:600;line-height:1.45;white-space:pre-line}
+.qz-props{display:flex;flex-direction:column;gap:7px}
+.qz-p{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--surface);cursor:pointer;text-align:left;font:inherit;color:var(--ink)}
+.qz-p:hover{border-color:var(--accent)}
+.qz-p.on{border-color:var(--accent);background:var(--accent-soft)}
+.qz-p b{font-family:var(--f-mono);font-size:.85rem}
+.qz-p .c{grid-column:2;font-size:.84rem;color:var(--muted)}
+.qz-p.ok{border-color:#2e8b57;background:color-mix(in srgb,#2e8b57 12%,var(--surface))}
+.qz-p.ko{border-color:#c0392b;background:color-mix(in srgb,#c0392b 12%,var(--surface))}
+.qz-p.miss{border-color:#2e8b57;border-style:dashed}
+.qz-res{padding:9px 11px;border-radius:9px;background:var(--accent-soft);font-size:.9rem}
+.qz-actions{display:flex;gap:8px;flex-wrap:wrap}
+.qz-end{display:flex;flex-direction:column;gap:10px}
+.qz-big{font-family:var(--f-display);font-size:2rem}
 .fc-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .fc-actions{display:flex;gap:6px;flex-wrap:wrap}
 .fc-chips{display:flex;flex-wrap:wrap;gap:6px;flex-basis:100%}
@@ -421,12 +438,14 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
   <section id="flashView" hidden>
     <div class="fcgrid">
       <section class="panel">
-        <h2>Nouvelles flashcards</h2>
+        <h2 id="flHead">Nouvelles flashcards</h2>
         <form id="flForm" class="fl-form">
+          <label class="label" for="flKind">Je veux</label>
+          <div class="addrow"><select id="flKind" class="fl-sel"><option value="cartes">Des flashcards (Anki)</option><option value="qcm">Faire des QCM niveau EDN (5 propositions)</option></select></div>
           <label class="label" for="flItem">Item</label>
           <div class="addrow fc-form"><input type="text" id="flItem" list="flItems" placeholder="N° de l'item (ex. 103)" autocomplete="off" required><select id="flNb" aria-label="Nombre de cartes"><option value="auto" selected>Tout l'item (auto)</option><option value="20">20 cartes</option><option value="30">30 cartes</option><option value="40">40 cartes</option></select></div>
-          <label class="label" for="flStyle">Style des cartes</label>
-          <div class="addrow"><select id="flStyle" class="fl-sel"><option value="fiche">Comme mes cartes EDN 2024 (en couleurs)</option><option value="qa">Questions-réponses courtes</option></select></div>
+          <label class="label" for="flStyle" id="flStyleL">Style des cartes</label>
+          <div class="addrow" id="flStyleRow"><select id="flStyle" class="fl-sel"><option value="fiche">Comme mes cartes EDN 2024 (en couleurs)</option><option value="qa">Questions-réponses courtes</option></select></div>
           <datalist id="flItems"></datalist>
           <label class="label" for="flCol">Collège</label>
           <div class="addrow"><input type="text" id="flCol" list="flCols" placeholder="Ex. Neurologie" autocomplete="off"></div>
@@ -611,7 +630,7 @@ function hypoOf(c){
 }
 const hpct=h=>h&&h.c+h.i>0?Math.round(h.c/(h.c+h.i)*100):null;
 function hypoView(c){return hypoOf(c)}
-function errsOf(c){if(!E||!E.errors)return[];const ns=new Set(String(c.item||"").match(/\d+/g)||[]);return E.errors.filter(e=>e.it.some(n=>ns.has(String(n))))}
+function errsOf(c){const ns=new Set(String(c.item||"").match(/\d+/g)||[]);const edn=E&&E.errors?E.errors:[];const own=(state.flash||[]).filter(x=>x.kind==="qcm").flatMap(x=>x.errs||[]);return edn.concat(own).filter(e=>(e.it||[]).some(n=>ns.has(String(n))))}
 let view=new Date(); view.setDate(1);
 try{filter=localStorage.getItem("carnet-filtre")||"all"}catch(e){}
 
@@ -1298,18 +1317,94 @@ function flStyled(t){
   return String(t||"").split(/\n+/).map(l=>{l=l.trim();if(!l)return "";const m=l.match(/^(\d+\))\s*(.*)$/);return "<div>"+(m?"<b>"+m[1]+"</b> "+inl(m[2]):inl(l))+"</div>"}).join("");
 }
 function flBack(s,c){return s.style==="fiche"?flStyled(c.r):flHtml(c.r)}
+/* ---------- QCM niveau EDN (5 propositions) : une question à la fois, notation EDN, erreurs dans le carnet, série comptée en révision ---------- */
+const QZL=["A","B","C","D","E"];
+/* barème EDN des QRM : 0 discordance = 1 point, 1 = 0,5, 2 = 0,2, au-delà = 0 ; aucune case cochée = 0 */
+function qzPts(q,picks){if(!picks.size)return 0;let d=0;for(let i=0;i<5;i++)if(picks.has(i)!==q.bonnes.includes(i))d++;return d===0?1:d===1?.5:d===2?.2:0}
+function qzLetters(a){return [...a].sort().map(i=>QZL[i]).join(", ")||"aucune"}
+function qzStart(s){const n=s.qs.length;const order=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
+  FLS.quiz={sid:s.id,order,i:0,picks:new Set(),shown:false,res:[]}}
+function qzRender(s){
+  const z=FLS.quiz&&FLS.quiz.sid===s.id?FLS.quiz:null,n=s.qs.length,c=flCourse(s.item);
+  const last=s.runs&&s.runs.length?s.runs[s.runs.length-1]:null;
+  if(!z){
+    $("flCards").innerHTML=`<div class="qz"><p class="hint" style="margin:0">${n} QCM de niveau EDN sur l'item ${esc(s.item)} · ${esc(s.src||"")}.</p>
+      <p style="margin:0">Une question à la fois, 5 propositions, une ou plusieurs bonnes réponses. Notation EDN : 1 point sans erreur, 0,5 avec une discordance, 0,2 avec deux, 0 au-delà.</p>
+      <p style="margin:0">À la fin, ta série compte comme une révision de l'item dans l'onglet QCM${c?"":" (ajoute d'abord l'item "+esc(s.item)+" à ton carnet pour qu'elle soit comptée)"}, et tes erreurs vont dans ton carnet d'erreurs.</p>
+      ${s.runs&&s.runs.length?`<p class="saved" style="margin:0">${s.runs.length} série${s.runs.length>1?"s":""} faite${s.runs.length>1?"s":""} · dernière : ${last.score} % le ${fmt(last.d)}${s.errs&&s.errs.length?" · "+s.errs.length+" erreur"+(s.errs.length>1?"s":"")+" dans le carnet":""}</p>`:""}
+      <div class="qz-actions"><button class="btn primary" type="button" data-qz="start">${s.runs&&s.runs.length?"Refaire la série":"Commencer"}</button>${s.errs&&s.errs.length?`<button class="btn" type="button" data-qz="errs">Relire mes erreurs</button>`:""}</div></div>`;
+    return;
+  }
+  if(z.i>=n){
+    const tot=z.res.reduce((a,r)=>a+r.pts,0),score=Math.round(tot/n*100),fautes=z.res.filter(r=>r.pts<1).length;
+    $("flCards").innerHTML=`<div class="qz qz-end"><div class="qz-big num">${score} %</div>
+      <p style="margin:0">${String(Math.round(tot*10)/10).replace(".",",")} point${tot>=2?"s":""} sur ${n} · ${n-fautes} QCM sans erreur.</p>
+      <p class="saved" style="margin:0">${z.saved||""}</p>
+      <div class="qz-actions"><button class="btn primary" type="button" data-qz="start">Refaire la série</button>${fautes?`<button class="btn" type="button" data-qz="errs">Relire mes erreurs</button>`:""}<button class="btn" type="button" data-qz="home">Terminer</button></div></div>`;
+    return;
+  }
+  const qi=z.order[z.i],q=s.qs[qi];
+  const props=q.props.map((t,i)=>{
+    let cls=z.picks.has(i)?" on":"";
+    if(z.shown){const ok=q.bonnes.includes(i),pk=z.picks.has(i);cls=pk&&ok?" ok":pk&&!ok?" ko":ok?" miss":""}
+    return `<button type="button" class="qz-p${cls}" data-qp="${i}" ${z.shown?"disabled":""} aria-pressed="${z.picks.has(i)}"><b>${QZL[i]}</b><span>${esc(t)}</span>${z.shown&&q.corr[i]?`<span class="c">${esc(q.corr[i])}</span>`:""}</button>`}).join("");
+  const r=z.shown?z.res[z.res.length-1]:null;
+  $("flCards").innerHTML=`<div class="qz"><div class="qz-top"><span class="num">QCM ${z.i+1} / ${n}</span><span>${q.rang?"Rang "+esc(q.rang)+" · ":""}${esc(q.theme||"")}</span></div>
+    <div class="qz-q">${esc(q.q)}</div><div class="qz-props">${props}</div>
+    ${r?`<div class="qz-res"><b>${r.pts===1?"Bravo, aucune erreur":r.pts>0?String(r.pts).replace(".",",")+" point":"0 point"}</b> · bonnes réponses : ${qzLetters(q.bonnes)}${q.retenir?`<br>À retenir : ${esc(q.retenir)}`:""}</div>`:""}
+    <div class="qz-actions">${z.shown?`<button class="btn primary" type="button" data-qz="next">${z.i+1<n?"QCM suivant":"Voir mon score"}</button>`:`<button class="btn primary" type="button" data-qz="check">Valider</button>`}<button class="btn" type="button" data-qz="quit">Arrêter la série</button></div></div>`;
+}
+function qzFinish(s){
+  const z=FLS.quiz,n=s.qs.length,tot=z.res.reduce((a,r)=>a+r.pts,0),score=Math.round(tot/n*100);
+  if(!Array.isArray(s.runs))s.runs=[];if(!Array.isArray(s.errs))s.errs=[];
+  s.runs.push({d:todayIso,score,n});
+  for(const r of z.res){if(r.pts>=1)continue;const q=s.qs[r.qi],qid=s.id+"-"+r.qi;
+    const e={qid,it:[String(s.item)],d:todayIso,url:"",meta:`QCM Claude · item ${s.item} · ${fmt(todayIso)} · ${String(r.pts).replace(".",",")} point`,
+      q:q.q+"\n"+q.props.map((t,i)=>QZL[i]+". "+t).join("\n"),mine:"Tu as coché : "+qzLetters(r.picks),
+      good:"Bonnes réponses : "+qzLetters(q.bonnes)+"\n"+q.corr.map((t,i)=>QZL[i]+". "+t).join("\n"),why:q.retenir||""};
+    s.errs=s.errs.filter(x=>x.qid!==qid);s.errs.unshift(e)}
+  const c=flCourse(s.item);
+  if(c){state.sessions.push({id:uid(),courseId:c.id,date:todayIso,done:true,type:"qcm",score});
+    const v=stats(c,"qcm").views;z.saved=`Série enregistrée : ${label(c)}, série n°${v} (${score} %)${v===DONE_AT?" · 3 séries faites !":""}. Tes erreurs sont dans ton carnet d'erreurs.`}
+  else z.saved=`L'item ${s.item} n'est pas dans ton carnet : la série n'a pas pu être comptée. Tes erreurs sont gardées ici.`;
+  save();
+}
+$("flCards").addEventListener("click",e=>{
+  const s=flCur();if(!s||s.kind!=="qcm")return;
+  const p=e.target.closest("[data-qp]"),b=e.target.closest("[data-qz]");const z=FLS.quiz;
+  if(p&&z&&!z.shown){const i=+p.dataset.qp;z.picks.has(i)?z.picks.delete(i):z.picks.add(i);qzRender(s);return}
+  if(!b)return;const a=b.dataset.qz;
+  if(a==="start"){qzStart(s);qzRender(s);return}
+  if(a==="errs"){openErrs("Erreurs QCM · item "+s.item,(s.errs||[]).slice());return}
+  if(a==="home"||a==="quit"){FLS.quiz=null;qzRender(s);return}
+  if(!z)return;
+  if(a==="check"){if(!z.picks.size){toast("Coche au moins une proposition.");return}const qi=z.order[z.i];z.res.push({qi,picks:new Set(z.picks),pts:qzPts(s.qs[qi],z.picks)});z.shown=true;qzRender(s);return}
+  if(a==="next"){z.i++;z.picks=new Set();z.shown=false;if(z.i>=s.qs.length)qzFinish(s);qzRender(s);$("flTitle").scrollIntoView({behavior:"smooth",block:"start"});return}
+});
+function flKindUi(){
+  const QC=$("flKind").value==="qcm";
+  $("flHead").textContent=QC?"Nouveaux QCM":"Nouvelles flashcards";
+  $("flStyleL").hidden=$("flStyleRow").hidden=QC;
+  const o=$("flNb").options;o[0].text=QC?"Tout l'item (auto)":"Tout l'item (auto)";
+  [["20","10"],["30","20"],["40","30"]].forEach(([c,q],i)=>{o[i+1].value=QC?q:c;o[i+1].text=(QC?q+" QCM":c+" cartes")});
+  $("flGo").textContent=QC?"Générer les QCM":"Générer les cartes";
+  if(!FLS.doc)$("flPdfName").textContent=(QC?"Recommandé : les QCM viennent alors du chapitre de l'item":"Recommandé : les cartes viennent alors du chapitre de l'item");
+}
+$("flKind").onchange=()=>{try{localStorage.setItem("carnet-fl-kind",$("flKind").value)}catch(e){}flKindUi()};
 function flFront(s,c){return s.style==="fiche"?esc(c.q):flHtml(c.q)}
 function renderFlash(){
   const L=state.flash;
   if(!flCur())FLS.cur=L.length?L[0].id:null;
   $("flN").textContent=L.length?L.length+" paquet"+(L.length>1?"s":""):"";
-  $("flList").innerHTML=L.length?L.map(s=>`<button type="button" class="fc-item${FLS.cur===s.id?" on":""}" data-flash="${esc(s.id)}"><span class="nm2">${esc(flSetName(s))}</span><span class="num">${s.cards.filter(c=>!c.off).length} cartes${s.sent?" · Anki ✓":""}</span></button>`).join(""):'<div class="empty">Tes paquets de cartes apparaîtront ici.</div>';
+  $("flList").innerHTML=L.length?L.map(s=>`<button type="button" class="fc-item${FLS.cur===s.id?" on":""}" data-flash="${esc(s.id)}"><span class="nm2">${s.kind==="qcm"?"QCM · ":""}${esc(flSetName(s))}</span><span class="num">${s.kind==="qcm"?s.qs.length+" QCM"+(s.runs&&s.runs.length?" · "+s.runs[s.runs.length-1].score+" %":""):s.cards.filter(c=>!c.off).length+" cartes"+(s.sent?" · Anki ✓":"")}</span></button>`).join(""):'<div class="empty">Tes paquets de cartes et de QCM apparaîtront ici.</div>';
   $("flItems").innerHTML=state.courses.filter(c=>c.item).map(c=>`<option value="${esc(String(c.item).match(/\d+/)[0])}">${esc(label(c))}</option>`).join("");
   $("flCols").innerHTML=subjects().map(m=>`<option value="${esc(m)}"></option>`).join("");
   const s=flCur();
   $("flAnki").hidden=!s||FLS.busy;$("flDel").hidden=!s||FLS.busy;
   if(FLS.busy)return;
-  $("flTitle").textContent=s?flSetName(s):"Cartes";
+  $("flTitle").textContent=s?(s.kind==="qcm"?"QCM · ":"")+flSetName(s):"Cartes";
+  if(s&&s.kind==="qcm"){$("flAnki").hidden=true;$("flDel").textContent=FLS.delArm&&Date.now()-FLS.delArm<4000?"Confirmer la suppression":"Supprimer les QCM";qzRender(s);return}
+  $("flDel").textContent=FLS.delArm&&Date.now()-FLS.delArm<4000?"Confirmer la suppression":"Supprimer le paquet";
   if(!s){$("flCards").innerHTML='<div class="fc-empty" style="color:var(--muted)">Indique un numéro d\'item, ajoute si possible le PDF du collège, puis touche Générer les cartes.</div>';return}
   if(!s.deck||/^EDN::|^EDN 2024 - Mes cartes$|^EDN 2024::Apprentissage::/i.test(s.deck))s.deck=flDefaultDeck(s);
   if(document.activeElement!==$("flDeck"))$("flDeck").value=s.deck;
@@ -1377,9 +1472,9 @@ $("flForm").onsubmit=async e=>{
   const c=flCourse(n);
   const titre=c?c.name:"";
   const college=$("flCol").value.trim()||(c&&c.subjects[0])||"";
-  const auto=$("flNb").value==="auto";
+  const auto=$("flNb").value==="auto",QC=$("flKind").value==="qcm";
   FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),auto?1200000:200000);
-  flBusy(true,FLS.doc?"Lecture du collège…":"Claude rédige les cartes de l'item "+n+"…");
+  flBusy(true,FLS.doc?"Lecture du collège…":"Claude rédige les "+(QC?"QCM":"cartes")+" de l'item "+n+"…");
   let texte="",src="d'après les connaissances du référentiel",pageParts=[];
   try{
     if(FLS.doc){
@@ -1395,12 +1490,19 @@ $("flForm").onsubmit=async e=>{
       texte=pageParts.join("\n\n").slice(0,150000);
       if(texte.replace(/\[page \d+\]|\s/g,"").length<800){$("flStatus").textContent="Ces pages ne contiennent presque pas de texte (PDF scanné ?). Essaie sans PDF ou avec un autre fichier.";return}
       src=`d'après ${FLS.file}, pages ${p1} à ${p2}`;
-      flProgress(`Chapitre trouvé (pages ${p1} à ${p2}). Claude rédige les cartes…`);
+      flProgress(`Chapitre trouvé (pages ${p1} à ${p2}). Claude rédige les ${QC?"QCM":"cartes"}…`);
     }
     const style=$("flStyle").value;try{localStorage.setItem("carnet-fl-style",style)}catch(e){}
-    const j=auto?await flGenAuto({item:n,titre,college,style},pageParts):await flCall({item:n,titre,college,nombre:$("flNb").value,texte,style});
-    if(!(j&&j.ok&&Array.isArray(j.cartes))){
-      $("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée.")+(texte?` Vérifie les pages du chapitre ci-dessus (pages ${$("flP1").value} à ${$("flP2").value} envoyées) : corrige la dernière page, puis relance.`:""):"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.";
+    const genre=QC?"qcm":"";
+    const j=auto?await flGenAuto({item:n,titre,college,style,genre},pageParts):await flCall({item:n,titre,college,nombre:$("flNb").value,texte,style,genre});
+    if(QC&&j&&j.ok&&Array.isArray(j.qcms)&&j.qcms.length){
+      const q={id:"q"+Date.now().toString(36),kind:"qcm",item:n,titre:titre||j.titre||"",college,src,d:new Date().toISOString(),qs:j.qcms,runs:[],errs:[],cards:[]};
+      state.flash.unshift(q);if(state.flash.length>40)state.flash.length=40;FLS.cur=q.id;FLS.quiz=null;
+      $("flStatus").textContent=`${j.qcms.length} QCM prêts${j.parties?` (tout l'item, rédigé en ${j.parties} parties)`:""}. À toi de jouer !`+(j.manquantes?` ${j.manquantes} partie${j.manquantes>1?"s n'ont":" n'a"} pas pu être rédigée${j.manquantes>1?"s":""} : relance pour compléter.`:"");
+      save();return;
+    }
+    if(!(j&&j.ok&&Array.isArray(j.cartes)&&(!QC||j.cartes.length))){
+      $("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée.")+(texte?` Vérifie les pages du chapitre ci-dessus (pages ${$("flP1").value} à ${$("flP2").value} envoyées) : corrige la dernière page, puis relance.`:""):(QC?"Les QCM n'ont pas pu être rédigés. Réessaie dans un instant.":"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.");
       return;
     }
     const s={id:"k"+Date.now().toString(36),item:n,titre:titre||j.titre||"",college,src,style,d:new Date().toISOString(),cards:j.cartes};
@@ -1417,27 +1519,29 @@ $("flForm").onsubmit=async e=>{
    le nombre de cartes de chaque partie suit sa longueur, 3 parties sont rédigées en même temps */
 const FL_FOCUS=["définition, épidémiologie, rappels anatomiques et physiopathologie utiles","sémiologie clinique, formes cliniques, examen clinique et examens complémentaires","diagnostics différentiels, étiologies, traitement et prise en charge, complications, surveillance, urgences et pièges"];
 async function flGenAuto(base,pageParts){
-  const dens=base.style==="fiche"?1800:900;let jobs=[];
+  const QC=base.genre==="qcm",KEY=QC?"qcms":"cartes";
+  const dens=QC?2500:base.style==="fiche"?1800:900;let jobs=[];
   if(pageParts&&pageParts.length){
     let cur=[],len=0;
     for(const p of pageParts){if(len+p.length>20000&&cur.length){jobs.push(cur.join("\n\n"));cur=[];len=0}cur.push(p);len+=p.length}
     if(cur.length)jobs.push(cur.join("\n\n"));
-    jobs=jobs.map((t,i,a)=>({texte:t,partie:(i+1)+"/"+a.length,nombre:Math.max(4,Math.min(30,Math.round(t.replace(/\s+/g," ").length/dens)))}));
-  }else jobs=FL_FOCUS.map(f=>({focus:f,nombre:base.style==="fiche"?15:22}));
+    jobs=jobs.map((t,i,a)=>({texte:t,partie:(i+1)+"/"+a.length,nombre:Math.max(QC?3:4,Math.min(QC?12:30,Math.round(t.replace(/\s+/g," ").length/dens)))}));
+  }else jobs=FL_FOCUS.map(f=>({focus:f,nombre:QC?8:base.style==="fiche"?15:22}));
   const res=new Array(jobs.length);let fait=0,ko=0,k=0;
-  flProgress(`Claude rédige tout l'item en ${jobs.length} parties…`);
+  flProgress(`Claude rédige ${QC?"les QCM de ":""}tout l'item en ${jobs.length} parties…`);
   const run=async i=>{
     for(let essai=0;essai<2&&!res[i];essai++){
       try{const j=await flCall(Object.assign({},base,jobs[i]));
-        if(j&&j.ok)res[i]=j;else if(j&&j.erreur==="cle")throw new Error("cle");else if(j&&j.erreur==="refus")res[i]={ok:true,cartes:[]};}
+        if(j&&j.ok)res[i]=j;else if(j&&j.erreur==="cle")throw new Error("cle");else if(j&&j.erreur==="refus")res[i]={ok:true,cartes:[],qcms:[]};}
       catch(e){if(e.name==="AbortError"||e.message==="cle")throw e}
     }
     if(!res[i])ko++;fait++;
-    flProgress(`Claude rédige tout l'item : ${fait} partie${fait>1?"s":""} sur ${jobs.length} terminée${fait>1?"s":""}…`);
+    flProgress(`Claude rédige ${QC?"les QCM de ":""}tout l'item : ${fait} partie${fait>1?"s":""} sur ${jobs.length} terminée${fait>1?"s":""}…`);
   };
   await Promise.all([...Array(Math.min(3,jobs.length))].map(async()=>{while(k<jobs.length){const i=k++;await run(i)}}));
   const vus=new Set(),cartes=[];let titre="";
-  for(const r of res){if(!r)continue;titre=titre||r.titre||"";for(const c of r.cartes||[]){const cle=c.q.replace(/^\s*\d+\.\s*/,"").toLowerCase().trim();if(vus.has(cle))continue;vus.add(cle);cartes.push(c)}}
+  for(const r of res){if(!r)continue;titre=titre||r.titre||"";for(const c of r[KEY]||[]){const cle=c.q.replace(/^\s*\d+\.\s*/,"").toLowerCase().trim();if(vus.has(cle))continue;vus.add(cle);cartes.push(c)}}
+  if(QC)return cartes.length?{ok:true,qcms:cartes,titre,parties:jobs.length,manquantes:ko}:{ok:false,erreur:"generation"};
   if(base.style==="fiche")cartes.forEach((c,i)=>{c.q=String(i+1).padStart(2,"0")+". "+c.q.replace(/^\s*\d+\.\s*/,"")});
   return cartes.length?{ok:true,cartes,titre,parties:jobs.length,manquantes:ko}:{ok:false,erreur:"generation"};
 }
@@ -1448,11 +1552,12 @@ $("flCards").onchange=e=>{const i=e.target.dataset.flkeep;const s=flCur();if(i==
 $("flCards").onclick=e=>{const b=e.target.closest("[data-flrm]");const s=flCur();if(!b||!s)return;s.cards.splice(+b.dataset.flrm,1);renderFlash();save()};
 $("flDeck").onchange=()=>{const s=flCur();if(!s)return;s.deck=$("flDeck").value.trim()||flDefaultDeck(s);save()};
 try{const st=localStorage.getItem("carnet-fl-style");if(st)$("flStyle").value=st}catch(e){}
+try{const k=localStorage.getItem("carnet-fl-kind");if(k)$("flKind").value=k}catch(e){}flKindUi();
 $("flDel").onclick=()=>{
   const s=flCur();if(!s)return;
   if(Date.now()-FLS.delArm>4000){FLS.delArm=Date.now();$("flDel").textContent="Confirmer la suppression";setTimeout(()=>{$("flDel").textContent="Supprimer le paquet"},4000);return}
   FLS.delArm=0;$("flDel").textContent="Supprimer le paquet";
-  state.flash=state.flash.filter(x=>x.id!==s.id);FLS.cur=null;renderFlash();save();toast("Paquet supprimé.");
+  state.flash=state.flash.filter(x=>x.id!==s.id);FLS.cur=null;FLS.quiz=null;renderFlash();save();toast(s.kind==="qcm"?"QCM supprimés.":"Paquet supprimé.");
 };
 function flTags(s,c){
   const t=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").replace(/^_+|_+$/g,"");
