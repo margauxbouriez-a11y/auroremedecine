@@ -261,6 +261,9 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .qz-p.miss{border-color:#2e8b57;border-style:dashed}
 .qz-res{padding:9px 11px;border-radius:9px;background:var(--accent-soft);font-size:.9rem}
 .qz-actions{display:flex;gap:8px;flex-wrap:wrap}
+.qz-add{border:1px dashed var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.qz-add textarea{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical;width:100%;box-sizing:border-box}
+.qz-add select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font:inherit}
 .qz-end{display:flex;flex-direction:column;gap:10px}
 .qz-big{font-family:var(--f-display);font-size:2rem}
 .fc-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
@@ -1324,6 +1327,46 @@ function qzPts(q,picks){if(!picks.size)return 0;let d=0;for(let i=0;i<5;i++)if(p
 function qzLetters(a){return [...a].sort().map(i=>QZL[i]).join(", ")||"aucune"}
 function qzStart(s){const n=s.qs.length;const order=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}
   FLS.quiz={sid:s.id,order,i:0,picks:new Set(),shown:false,res:[]}}
+/* ajouter des QCM sur des notions qui manquent dans la série */
+function qzAddHtml(s){
+  const m=FLS.more&&FLS.more.sid===s.id?FLS.more:null;
+  return `<div class="qz-add"><b>Il manque des notions ?</b>
+    <textarea id="qzMiss" rows="2" placeholder="Écris ce qui manque, par exemple : hypoglycémie, critères d'hospitalisation, traitement de l'état de mal épileptique…" ${m&&m.busy?"disabled":""}>${esc(m&&m.focus||"")}</textarea>
+    <div class="qz-actions"><select id="qzMissN" aria-label="Nombre de QCM à ajouter">${[5,10,15].map(v=>`<option value="${v}"${(m&&m.n||10)===v?" selected":""}>${v} QCM</option>`).join("")}</select><button class="btn" type="button" data-qz="more" ${m&&m.busy?"disabled":""}>${m&&m.busy?"Claude rédige…":"Ajouter des QCM"}</button></div>
+    <p class="hint" style="margin:0">${m&&m.msg?esc(m.msg):"Claude rédige de nouveaux QCM sur ces notions"+(qzPages(s)?" à partir du chapitre du collège":"")+", sans reprendre ceux de la série, et les ajoute à la série."}</p></div>`;
+}
+/* pages du collège de la série (enregistrées, ou relues dans « d'après X.pdf, pages A à B ») */
+function qzPages(s){
+  if(!FLS.doc)return null;
+  let f=s.file,p1=s.p1,p2=s.p2;
+  if(!p1){const m=String(s.src||"").match(/d'après (.+), pages (\d+) à (\d+)/);if(m){f=m[1];p1=+m[2];p2=+m[3]}}
+  if(!p1||!p2||p2<p1||(f&&f!==FLS.file))return null;
+  return [p1,Math.min(p2,FLS.doc.numPages,p1+60)];
+}
+async function qzMore(s){
+  const focus=($("qzMiss")&&$("qzMiss").value||"").trim().slice(0,400),n=+($("qzMissN")&&$("qzMissN").value)||10;
+  if(!focus){FLS.more={sid:s.id,focus:"",n,msg:"Écris d'abord les notions qui manquent."};qzRender(s);return}
+  if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
+  if(FLS.busy||(FLS.more&&FLS.more.busy))return;
+  FLS.more={sid:s.id,focus,n,busy:true};qzRender(s);
+  FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),200000);
+  let msg;
+  try{
+    let texte="";const pg=qzPages(s);
+    if(pg){const parts=[];for(let p=pg[0];p<=pg[1];p++)parts.push(`[page ${p}]\n`+await flPageText(p));texte=parts.join("\n\n").slice(0,150000)}
+    const j=await flCall({item:s.item,titre:s.titre||"",college:s.college||"",genre:"qcm",style:"",nombre:n,focus,texte,eviter:s.qs.map(q=>String(q.q).slice(0,200)).slice(-80)});
+    if(j&&j.ok&&Array.isArray(j.qcms)&&j.qcms.length){
+      const vus=new Set(s.qs.map(q=>String(q.q).toLowerCase().trim()));
+      const neufs=j.qcms.filter(q=>{const k=String(q.q).toLowerCase().trim();if(vus.has(k))return false;vus.add(k);return true});
+      s.qs.push(...neufs);(s.ajouts=s.ajouts||[]).push({d:todayIso,focus,n:neufs.length});save();
+      msg=neufs.length?`${neufs.length} QCM ajouté${neufs.length>1?"s":""} sur « ${focus} ». La série en compte maintenant ${s.qs.length}.`:"Claude n'a rien trouvé de nouveau à ajouter sur ces notions.";
+      FLS.more={sid:s.id,focus:"",n,msg};if(FLS.quiz&&FLS.quiz.sid===s.id)FLS.quiz=null;renderFlash();return;
+    }
+    msg=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée."):"Les QCM n'ont pas pu être rédigés. Réessaie dans un instant.";
+  }catch(e){msg=e.name==="AbortError"?"La rédaction a pris trop de temps. Réessaie avec moins de QCM.":"Les QCM n'ont pas pu être rédigés. Vérifie ta connexion et réessaie."}
+  finally{clearTimeout(to)}
+  FLS.more={sid:s.id,focus,n,msg};qzRender(s);
+}
 function qzRender(s){
   const z=FLS.quiz&&FLS.quiz.sid===s.id?FLS.quiz:null,n=s.qs.length,c=flCourse(s.item);
   const last=s.runs&&s.runs.length?s.runs[s.runs.length-1]:null;
@@ -1332,7 +1375,7 @@ function qzRender(s){
       <p style="margin:0">Une question à la fois, 5 propositions, une ou plusieurs bonnes réponses. Notation EDN : 1 point sans erreur, 0,5 avec une discordance, 0,2 avec deux, 0 au-delà.</p>
       <p style="margin:0">À la fin, ta série compte comme une révision de l'item dans l'onglet QCM${c?"":" (ajoute d'abord l'item "+esc(s.item)+" à ton carnet pour qu'elle soit comptée)"}, et tes erreurs vont dans ton carnet d'erreurs.</p>
       ${s.runs&&s.runs.length?`<p class="saved" style="margin:0">${s.runs.length} série${s.runs.length>1?"s":""} faite${s.runs.length>1?"s":""} · dernière : ${last.score} % le ${fmt(last.d)}${s.errs&&s.errs.length?" · "+s.errs.length+" erreur"+(s.errs.length>1?"s":"")+" dans le carnet":""}</p>`:""}
-      <div class="qz-actions"><button class="btn primary" type="button" data-qz="start">${s.runs&&s.runs.length?"Refaire la série":"Commencer"}</button>${s.errs&&s.errs.length?`<button class="btn" type="button" data-qz="errs">Relire mes erreurs</button>`:""}</div></div>`;
+      <div class="qz-actions"><button class="btn primary" type="button" data-qz="start">${s.runs&&s.runs.length?"Refaire la série":"Commencer"}</button>${s.errs&&s.errs.length?`<button class="btn" type="button" data-qz="errs">Relire mes erreurs</button>`:""}</div>${qzAddHtml(s)}</div>`;
     return;
   }
   if(z.i>=n){
@@ -1340,7 +1383,7 @@ function qzRender(s){
     $("flCards").innerHTML=`<div class="qz qz-end"><div class="qz-big num">${score} %</div>
       <p style="margin:0">${String(Math.round(tot*10)/10).replace(".",",")} point${tot>=2?"s":""} sur ${n} · ${n-fautes} QCM sans erreur.</p>
       <p class="saved" style="margin:0">${z.saved||""}</p>
-      <div class="qz-actions"><button class="btn primary" type="button" data-qz="start">Refaire la série</button>${fautes?`<button class="btn" type="button" data-qz="errs">Relire mes erreurs</button>`:""}<button class="btn" type="button" data-qz="home">Terminer</button></div></div>`;
+      <div class="qz-actions"><button class="btn primary" type="button" data-qz="start">Refaire la série</button>${fautes?`<button class="btn" type="button" data-qz="errs">Relire mes erreurs</button>`:""}<button class="btn" type="button" data-qz="home">Terminer</button></div>${qzAddHtml(s)}</div>`;
     return;
   }
   const qi=z.order[z.i],q=s.qs[qi];
@@ -1374,6 +1417,7 @@ $("flCards").addEventListener("click",e=>{
   const p=e.target.closest("[data-qp]"),b=e.target.closest("[data-qz]");const z=FLS.quiz;
   if(p&&z&&!z.shown){const i=+p.dataset.qp;z.picks.has(i)?z.picks.delete(i):z.picks.add(i);qzRender(s);return}
   if(!b)return;const a=b.dataset.qz;
+  if(a==="more"){qzMore(s);return}
   if(a==="start"){qzStart(s);qzRender(s);return}
   if(a==="errs"){openErrs("Erreurs QCM · item "+s.item,(s.errs||[]).slice());return}
   if(a==="home"||a==="quit"){FLS.quiz=null;qzRender(s);return}
@@ -1498,6 +1542,7 @@ $("flForm").onsubmit=async e=>{
     const j=auto?await flGenAuto({item:n,titre,college,style,genre},pageParts):await flCall({item:n,titre,college,nombre:$("flNb").value,texte,style,genre});
     if(QC&&j&&j.ok&&Array.isArray(j.qcms)&&j.qcms.length){
       const q={id:"q"+Date.now().toString(36),kind:"qcm",item:n,titre:titre||j.titre||"",college,src,d:new Date().toISOString(),qs:j.qcms,runs:[],errs:[],cards:[]};
+      if(FLS.doc){q.file=FLS.file;q.p1=+$("flP1").value||0;q.p2=+$("flP2").value||0}
       state.flash.unshift(q);if(state.flash.length>40)state.flash.length=40;FLS.cur=q.id;FLS.quiz=null;
       $("flStatus").textContent=`${j.qcms.length} QCM prêts${j.parties?` (tout l'item, rédigé en ${j.parties} parties)`:""}. À toi de jouer !`+(j.manquantes?` ${j.manquantes} partie${j.manquantes>1?"s n'ont":" n'a"} pas pu être rédigée${j.manquantes>1?"s":""} : relance pour compléter.`:"");
       save();return;
