@@ -1329,11 +1329,11 @@ function qzStart(s){const n=s.qs.length;const order=[...Array(n).keys()];for(let
   FLS.quiz={sid:s.id,order,i:0,picks:new Set(),shown:false,res:[]}}
 /* ajouter des QCM sur des notions qui manquent dans la série */
 function qzAddHtml(s){
-  const m=FLS.more&&FLS.more.sid===s.id?FLS.more:null;
-  return `<div class="qz-add"><b>Il manque des notions ?</b>
+  const m=FLS.more&&FLS.more.sid===s.id?FLS.more:null,QC=s.kind==="qcm";
+  return `<div class="qz-add"${QC?"":` style="margin-bottom:4px"`}><b>Il manque des notions ?</b>
     <textarea id="qzMiss" rows="2" placeholder="Écris ce qui manque, par exemple : hypoglycémie, critères d'hospitalisation, traitement de l'état de mal épileptique…" ${m&&m.busy?"disabled":""}>${esc(m&&m.focus||"")}</textarea>
-    <div class="qz-actions"><select id="qzMissN" aria-label="Nombre de QCM à ajouter">${[5,10,15].map(v=>`<option value="${v}"${(m&&m.n||10)===v?" selected":""}>${v} QCM</option>`).join("")}</select><button class="btn" type="button" data-qz="more" ${m&&m.busy?"disabled":""}>${m&&m.busy?"Claude rédige…":"Ajouter des QCM"}</button></div>
-    <p class="hint" style="margin:0">${m&&m.msg?esc(m.msg):"Claude rédige de nouveaux QCM sur ces notions"+(qzPages(s)?" à partir du chapitre du collège":"")+", sans reprendre ceux de la série, et les ajoute à la série."}</p></div>`;
+    <div class="qz-actions"><select id="qzMissN" aria-label="Nombre à ajouter">${[5,10,15,20].map(v=>`<option value="${v}"${(m&&m.n||10)===v?" selected":""}>${v} ${QC?"QCM":"cartes"}</option>`).join("")}</select><button class="btn" type="button" data-qz="more" ${m&&m.busy?"disabled":""}>${m&&m.busy?"Claude rédige…":QC?"Ajouter des QCM":"Ajouter des cartes"}</button></div>
+    <p class="hint" style="margin:0">${m&&m.msg?esc(m.msg):"Claude rédige "+(QC?"de nouveaux QCM":"de nouvelles cartes")+" sur ces notions"+(qzPages(s)?" à partir du chapitre du collège":"")+", sans reprendre "+(QC?"ceux de la série, et les ajoute à la série.":"celles du paquet, et les ajoute au paquet.")}</p></div>`;
 }
 /* pages du collège de la série (enregistrées, ou relues dans « d'après X.pdf, pages A à B ») */
 function qzPages(s){
@@ -1345,27 +1345,32 @@ function qzPages(s){
 }
 async function qzMore(s){
   const focus=($("qzMiss")&&$("qzMiss").value||"").trim().slice(0,400),n=+($("qzMissN")&&$("qzMissN").value)||10;
-  if(!focus){FLS.more={sid:s.id,focus:"",n,msg:"Écris d'abord les notions qui manquent."};qzRender(s);return}
+  if(!focus){FLS.more={sid:s.id,focus:"",n,msg:"Écris d'abord les notions qui manquent."};renderFlash();return}
   if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
   if(FLS.busy||(FLS.more&&FLS.more.busy))return;
-  FLS.more={sid:s.id,focus,n,busy:true};qzRender(s);
+  const QC=s.kind==="qcm",LIST=QC?s.qs:s.cards;
+  FLS.more={sid:s.id,focus,n,busy:true};renderFlash();
   FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),200000);
   let msg;
   try{
     let texte="";const pg=qzPages(s);
     if(pg){const parts=[];for(let p=pg[0];p<=pg[1];p++)parts.push(`[page ${p}]\n`+await flPageText(p));texte=parts.join("\n\n").slice(0,150000)}
-    const j=await flCall({item:s.item,titre:s.titre||"",college:s.college||"",genre:"qcm",style:"",nombre:n,focus,texte,eviter:s.qs.map(q=>String(q.q).slice(0,200)).slice(-80)});
-    if(j&&j.ok&&Array.isArray(j.qcms)&&j.qcms.length){
-      const vus=new Set(s.qs.map(q=>String(q.q).toLowerCase().trim()));
-      const neufs=j.qcms.filter(q=>{const k=String(q.q).toLowerCase().trim();if(vus.has(k))return false;vus.add(k);return true});
-      s.qs.push(...neufs);(s.ajouts=s.ajouts||[]).push({d:todayIso,focus,n:neufs.length});save();
-      msg=neufs.length?`${neufs.length} QCM ajouté${neufs.length>1?"s":""} sur « ${focus} ». La série en compte maintenant ${s.qs.length}.`:"Claude n'a rien trouvé de nouveau à ajouter sur ces notions.";
+    const j=await flCall({item:s.item,titre:s.titre||"",college:s.college||"",genre:QC?"qcm":"",style:QC?"":s.style||"",nombre:n,focus,texte,eviter:LIST.map(q=>String(q.q).replace(/<[^>]+>/g,"").slice(0,200)).slice(-80)});
+    const recus=j&&j.ok?(QC?j.qcms:j.cartes):null;
+    if(Array.isArray(recus)&&recus.length){
+      const cle=q=>String(q.q).replace(/^\s*\d+\.\s*/,"").toLowerCase().trim();
+      const vus=new Set(LIST.map(cle));
+      const neufs=recus.filter(q=>{const k=cle(q);if(vus.has(k))return false;vus.add(k);return true});
+      if(!QC)neufs.forEach(c=>{c.nv=true});
+      LIST.push(...neufs);(s.ajouts=s.ajouts||[]).push({d:todayIso,focus,n:neufs.length});save();
+      const nb=neufs.length,mot=QC?"QCM":"carte"+(nb>1?"s":""),acc=QC?"ajouté"+(nb>1?"s":""):"ajoutée"+(nb>1?"s":"");
+      msg=nb?`${nb} ${mot} ${acc} sur « ${focus} ». ${QC?"La série en compte maintenant "+LIST.length+".":(nb>1?"Elles sont":"Elle est")+" en bas de la liste"+(s.sent?" : « Envoyer dans Anki » n'enverra que "+(nb>1?"ces nouvelles cartes.":"cette nouvelle carte."):".")}`:"Claude n'a rien trouvé de nouveau à ajouter sur ces notions.";
       FLS.more={sid:s.id,focus:"",n,msg};if(FLS.quiz&&FLS.quiz.sid===s.id)FLS.quiz=null;renderFlash();return;
     }
     msg=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée."):"Les QCM n'ont pas pu être rédigés. Réessaie dans un instant.";
   }catch(e){msg=e.name==="AbortError"?"La rédaction a pris trop de temps. Réessaie avec moins de QCM.":"Les QCM n'ont pas pu être rédigés. Vérifie ta connexion et réessaie."}
   finally{clearTimeout(to)}
-  FLS.more={sid:s.id,focus,n,msg};qzRender(s);
+  FLS.more={sid:s.id,focus,n,msg};renderFlash();
 }
 function qzRender(s){
   const z=FLS.quiz&&FLS.quiz.sid===s.id?FLS.quiz:null,n=s.qs.length,c=flCourse(s.item);
@@ -1413,7 +1418,9 @@ function qzFinish(s){
   save();
 }
 $("flCards").addEventListener("click",e=>{
-  const s=flCur();if(!s||s.kind!=="qcm")return;
+  const s=flCur();if(!s)return;
+  if(e.target.closest('[data-qz="more"]')){qzMore(s);return}
+  if(s.kind!=="qcm")return;
   const p=e.target.closest("[data-qp]"),b=e.target.closest("[data-qz]");const z=FLS.quiz;
   if(p&&z&&!z.shown){const i=+p.dataset.qp;z.picks.has(i)?z.picks.delete(i):z.picks.add(i);qzRender(s);return}
   if(!b)return;const a=b.dataset.qz;
@@ -1453,7 +1460,7 @@ function renderFlash(){
   if(!s.deck||/^EDN::|^EDN 2024 - Mes cartes$|^EDN 2024::Apprentissage::/i.test(s.deck))s.deck=flDefaultDeck(s);
   else if(/^EDN 2024 - Mes cartes::Apprentissage(::|$)/i.test(s.deck))s.deck=s.deck.replace(/^EDN 2024 - Mes cartes::Apprentissage/i,"EDN 2024 - Apprentissage");
   if(document.activeElement!==$("flDeck"))$("flDeck").value=s.deck;
-  $("flCards").innerHTML=`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flFront(s,c)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
+  $("flCards").innerHTML=`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+qzAddHtml(s)+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flFront(s,c)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
 }
 function flBusy(b,msg){
   FLS.busy=b;$("flGo").disabled=b;$("flStop").hidden=!b;renderFlash();
@@ -1552,6 +1559,7 @@ $("flForm").onsubmit=async e=>{
       return;
     }
     const s={id:"k"+Date.now().toString(36),item:n,titre:titre||j.titre||"",college,src,style,d:new Date().toISOString(),cards:j.cartes};
+    if(FLS.doc){s.file=FLS.file;s.p1=+$("flP1").value||0;s.p2=+$("flP2").value||0}
     s.deck=flDefaultDeck(s);
     state.flash.unshift(s);if(state.flash.length>40)state.flash.length=40;
     FLS.cur=s.id;
@@ -1619,12 +1627,13 @@ $("flSend").onclick=async()=>{
   const s=flCur();if(!s)return;
   if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
   const deck=$("flDeck").value.trim()||flDefaultDeck(s);s.deck=deck;
-  const cards=s.cards.filter(c=>!c.off);if(!cards.length){$("flAnkiMsg").textContent="Aucune carte cochée.";return}
+  const nvs=s.sent?s.cards.filter(c=>!c.off&&c.nv):[];
+  const cards=nvs.length?nvs:s.cards.filter(c=>!c.off);if(!cards.length){$("flAnkiMsg").textContent="Aucune carte cochée.";return}
   const btn=$("flSend");btn.disabled=true;$("flAnkiMsg").textContent="Envoi…";
   try{
     const r=await fetch(ANKI_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({k:CLE,action:"push",deck,cartes:cards.map(c=>({front:flFront(s,c),back:flBack(s,c),tags:flTags(s,c)}))})});
     const j=await r.json();if(!j.ok)throw new Error(j.erreur||"envoi");
-    s.sent=new Date().toISOString();save();renderFlash();
+    cards.forEach(c=>{delete c.nv});s.sent=new Date().toISOString();save();renderFlash();
     $("flAnkiMsg").textContent=`${j.ajoutees} carte${j.ajoutees>1?"s":""} envoyée${j.ajoutees>1?"s":""}. Elles arrivent dans « ${deck.replace(/::/g," → ")} » dès qu'Anki est ouvert sur ton ordinateur (vérification toutes les 2 minutes, ou tout de suite avec Outils → Récupérer les cartes du carnet).`;
   }catch(err){$("flAnkiMsg").textContent="L'envoi a échoué. Vérifie ta connexion et réessaie."}
   finally{btn.disabled=false}
