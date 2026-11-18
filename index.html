@@ -261,6 +261,22 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .qz-p.miss{border-color:#2e8b57;border-style:dashed}
 .qz-res{padding:9px 11px;border-radius:9px;background:var(--accent-soft);font-size:.9rem}
 .qz-actions{display:flex;gap:8px;flex-wrap:wrap}
+.im-chips{display:flex;flex-wrap:wrap;gap:6px}
+.im-chip{border:1px solid var(--line);border-radius:999px;padding:5px 11px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.im-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}.im-chip small{opacity:.7}
+.im-frame{background:#000;border-radius:10px;overflow:hidden;display:flex;justify-content:center}
+.im-frame>img{max-width:100%;max-height:62vh;display:block}
+.im-crop{overflow:hidden;width:min(100%,520px)}.im-crop img{display:block;max-width:none}
+.im-credit{margin:-4px 0 0;font-size:12px;color:var(--muted)}.im-credit a{color:inherit}
+.im-q{display:flex;flex-direction:column;gap:6px}.im-opts{display:flex;flex-wrap:wrap;gap:6px}
+.im-opt{border:1px solid var(--line);border-radius:8px;padding:7px 11px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.im-opt.on{border-color:var(--accent);background:var(--accent-soft)}
+.im-opt.ok{border-color:#2e8b57;background:color-mix(in srgb,#2e8b57 14%,var(--surface))}
+.im-opt.ko{border-color:#c0392b;background:color-mix(in srgb,#c0392b 14%,var(--surface))}
+.im-opt.miss{border-color:#2e8b57;border-style:dashed}.im-opt:disabled{cursor:default;opacity:1}
+.im-kpis{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}.im-kpis span{border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12px;color:var(--muted);display:flex;flex-direction:column}.im-kpis b{font-size:16px;color:var(--ink)}
+.im-recap{display:flex;flex-direction:column;gap:6px;text-align:left}.im-recap div{border-left:4px solid #2e8b57;padding:4px 10px;display:flex;flex-direction:column}.im-recap div.ko{border-left-color:#c0392b}.im-recap small{color:var(--muted)}
+.im-memo{border:1px solid var(--line);border-radius:10px;padding:8px 12px}.im-memo summary{cursor:pointer;font-weight:600}.im-memo ul{margin:8px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:13px}
 .qz-add{border:1px dashed var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .qz-add textarea{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical;width:100%;box-sizing:border-box}
 .qz-add select{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font:inherit}
@@ -365,7 +381,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
     <div>
       <div class="label">Révisions · <span id="todayLbl"></span></div>
       <h1>Carnet de révisions</h1>
-      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button><button class="tab" role="tab" data-mode="fiches">Fiches</button><button class="tab" role="tab" data-mode="flash">Flashcards</button></div> <span class="saved" id="hypoUpd"></span>
+      <div class="tabs" role="tablist"><button class="tab" role="tab" data-mode="cours">Cours</button><button class="tab" role="tab" data-mode="qcm">QCM</button><button class="tab" role="tab" data-mode="lca">LCA</button><button class="tab" role="tab" data-mode="fiches">Fiches</button><button class="tab" role="tab" data-mode="flash">Flashcards</button><button class="tab" role="tab" data-mode="img">Imagerie</button></div> <span class="saved" id="hypoUpd"></span>
     </div>
     <div class="stats">
       <div class="stat"><div class="label" id="lSeen">Items terminés (3 révisions)</div><div class="v"><span id="sSeen">0</span><small>/<span id="sTotal">0</span></small></div></div>
@@ -478,6 +494,32 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
         </div>
         <div id="flCards" class="fl-cards"></div>
       </section>
+    </div>
+  </section>
+
+  <section id="imgView" hidden>
+    <div class="fcgrid">
+      <section class="panel" style="display:flex;flex-direction:column;gap:12px">
+        <h2 style="margin:0">Imagerie</h2>
+        <p class="hint" style="margin:0">Pour chaque image : modalité, fenêtre ou séquence, plan de coupe, puis diagnostic.</p>
+        <div><div class="label">Région</div><div class="im-chips" id="imReg"></div></div>
+        <div class="qz-actions"><button class="btn primary" type="button" id="imGo">Nouvelle série (10 images)</button><button class="btn" type="button" id="imErr">Revoir mes erreurs</button></div>
+        <div id="imStats"></div>
+        <details class="im-memo"><summary>Mémo : fenêtres et séquences</summary><ul>
+          <li><b>Scanner, fenêtre cérébrale</b> : cerveau détaillé, sang frais blanc (hyperdense), os tout blanc.</li>
+          <li><b>Fenêtre osseuse</b> : os détaillé (corticale, traits de fracture), cerveau uniformément gris.</li>
+          <li><b>Fenêtre pulmonaire</b> : poumon et bronches détaillés, médiastin tout blanc.</li>
+          <li><b>Fenêtre médiastinale ou abdominale</b> : tissus mous détaillés, poumon tout noir.</li>
+          <li><b>Injection</b> : temps artériel = aorte et artères très blanches ; temps portal = veine porte, foie et parenchymes rehaussés.</li>
+          <li><b>IRM T1</b> : LCR noir, graisse blanche. <b>T1 gadolinium</b> : prises de contraste (rupture de la barrière hémato-encéphalique).</li>
+          <li><b>T2</b> : LCR blanc. <b>FLAIR</b> : T2 avec LCR noir, lésions en hypersignal.</li>
+          <li><b>Diffusion</b> : image floue, AVC aigu en hypersignal ; <b>ADC</b> : LCR blanc, AVC aigu en hyposignal.</li>
+          <li><b>Échographie</b> : liquide noir (anéchogène) ; calcul blanc (hyperéchogène) avec cône d'ombre derrière.</li>
+          <li><b>Radiographie</b> : air noir, os blanc ; convention : la droite du patient est à gauche de l'image (vrai aussi en scanner et IRM axiaux).</li>
+        </ul></details>
+        <p class="hint" style="margin:0">Images libres de droits issues de Wikimedia Commons ; l'auteur et la licence sont indiqués sous chaque image.</p>
+      </section>
+      <section class="panel"><div id="imMain"></div></section>
     </div>
   </section>
 
@@ -620,6 +662,7 @@ try{exam=localStorage.getItem("carnet-exam")||"all"}catch(e){}
 let mode="cours", scoreFor=null;
 try{mode=localStorage.getItem("carnet-mode")||"cours"}catch(e){}
 if(location.hash==="#qcm")mode="qcm";
+if(location.hash==="#imagerie")mode="img";
 const typeOf=s=>s.type||"cours";
 let E=null;try{E=JSON.parse(localStorage.getItem("carnet-edn")||"null")}catch(e){}
 let RV=null;
@@ -715,7 +758,7 @@ function save(){
   if(!ref){$("saved").textContent=" · enregistré sur cet appareil";return}
   clearTimeout(saveTimer);$("saved").textContent=" · enregistrement…";
   saveTimer=setTimeout(async()=>{
-    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,flash:state.flash,updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
+    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,flash:state.flash,imagerie:state.imagerie||{},updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
     catch(e){$("saved").textContent=" · échec de l'enregistrement, réessaie"}
     finally{saveTimer=null}
   },800);
@@ -732,9 +775,9 @@ function grouped(list){
   return out;
 }
 function render(){
-  const L=mode==="lca",F=mode==="fiches",FL=mode==="flash";
-  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L||F||FL);$("lcaView").hidden=!L;$("fichesView").hidden=!F;$("flashView").hidden=!FL;
-  if(L||F||FL){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;if(L)renderLCA();else if(F)renderFiches();else renderFlash();return}
+  const L=mode==="lca",F=mode==="fiches",FL=mode==="flash",IG=mode==="img";
+  ["mainGrid","tableSec","exams","filters"].forEach(id=>$(id).hidden=L||F||FL||IG);$("lcaView").hidden=!L;$("fichesView").hidden=!F;$("flashView").hidden=!FL;$("imgView").hidden=!IG;
+  if(L||F||FL||IG){document.querySelectorAll(".tab").forEach(b=>{b.classList.toggle("on",b.dataset.mode===mode);b.setAttribute("aria-selected",String(b.dataset.mode===mode))});$("armed").hidden=true;if(L)renderLCA();else if(F)renderFiches();else if(IG)renderImagerie();else renderFlash();return}
   $("lNext").textContent="Prévues à venir";
   const all=state.courses.map(c=>({c,...stats(c)}));
   if(exam!=="all"&&!examOf(exam))exam="all";
@@ -1647,6 +1690,199 @@ $("flDl").onclick=()=>{
   telecharger(("Anki - "+flSetName(s)).replace(/[\\/:*?"<>|]/g," ").slice(0,90)+".txt",new Blob([txt],{type:"text/plain;charset=utf-8"}));
   $("flAnkiMsg").textContent="Fichier téléchargé : dans Anki, Fichier → Importer, puis choisis ce fichier.";
 };
+/* ---------- Imagerie : cas d'entraînement (images libres de droits, Wikimedia Commons) ---------- */
+const IMG_REG=["Neuro","Thorax","Abdomen","Gynéco-obstétrique","Ostéo-articulaire"];
+const IMG_MOD=["Radiographie","Scanner (TDM)","IRM","Échographie","Mammographie"];
+const IMG_Q={
+  "Scanner (TDM)":[["fen","Fenêtre",["Cérébrale (parenchymateuse)","Osseuse","Pulmonaire (parenchymateuse)","Médiastinale / tissus mous","Abdominale (tissus mous)"]],["inj","Injection",["Sans injection","Injection, temps artériel","Injection, temps portal"]],["plan","Plan de coupe",["Axial","Coronal","Sagittal"]]],
+  "IRM":[["seq","Séquence",["T1","T1 avec gadolinium","T2","FLAIR","Diffusion","Cartographie ADC"]],["plan","Plan de coupe",["Axial","Coronal","Sagittal"]]],
+  "Radiographie":[["inc","Région et incidence",["Thorax de face","Thorax de profil","Abdomen sans préparation (ASP) debout","Bassin de face"]]],
+  "Échographie":[["org","Organe exploré",["Vésicule biliaire","Rein","Utérus","Ovaire / annexe","Espace hépato-rénal (Morrison)"]]],
+  "Mammographie":[["inc","Incidence",["Craniocaudale (de face)","Oblique externe (MLO)"]]]
+};
+const IMG_CASES=[
+ {id:"hsd",f:"Trauma_subdural.jpg",cr:"Glitzy queen00 (Wikipédia en anglais) · domaine public",reg:"Neuro",mod:"Scanner (TDM)",fen:"Cérébrale (parenchymateuse)",inj:"Sans injection",plan:"Axial",
+  dx:"Hématome sous-dural aigu",dd:["Hématome extradural","Hémorragie méningée","Hématome intraparenchymateux"],
+  why:"Collection hyperdense (sang frais) en croissant, concave vers le cerveau, étendue le long de la convexité : elle franchit les sutures mais pas la faux. Effet de masse avec déviation de la ligne médiane : urgence neurochirurgicale."},
+ {id:"hed",f:"Epidurale_Blutung_-_CT_-_WT-KF.jpg",crop:[0,0,.5,1],cr:"Hellerhoff · CC BY-SA 3.0",reg:"Neuro",mod:"Scanner (TDM)",fen:"Cérébrale (parenchymateuse)",inj:"Sans injection",plan:"Axial",
+  dx:"Hématome extradural",dd:["Hématome sous-dural aigu","Hémorragie méningée","Abcès cérébral"],
+  why:"Lentille biconvexe hyperdense contre la voûte, limitée par les sutures (la dure-mère y adhère). Souvent associé à une fracture : on la recherche en fenêtre osseuse. Intervalle libre classique."},
+ {id:"hedos",f:"Epidurale_Blutung_-_CT_-_WT-KF.jpg",crop:[.5,0,1,1],cr:"Hellerhoff · CC BY-SA 3.0",reg:"Neuro",mod:"Scanner (TDM)",fen:"Osseuse",inj:"Sans injection",plan:"Axial",
+  dxQ:"À quoi sert cette fenêtre ?",dx:"Rechercher une fracture du crâne",dd:["Voir un saignement intracrânien","Dépister une ischémie précoce","Analyser le parenchyme pulmonaire"],
+  why:"Même coupe que l'image de l'hématome extradural, en fenêtre osseuse : l'os cortical est bien détaillé mais le cerveau est uniformément gris, on n'y voit plus le sang. On l'utilise pour chercher un trait de fracture."},
+ {id:"hsa",f:"Subarachnoid_hemorrhage_CT.jpg",cr:"Dr George Jallo · CC BY-SA 3.0 / GFDL",reg:"Neuro",mod:"Scanner (TDM)",fen:"Cérébrale (parenchymateuse)",inj:"Sans injection",plan:"Axial",
+  dx:"Hémorragie méningée (sous-arachnoïdienne)",dd:["Hématome sous-dural aigu","AVC ischémique sylvien","Méningite bactérienne"],
+  why:"Hyperdensité spontanée des citernes de la base et des sillons (le sang dessine les espaces sous-arachnoïdiens). Céphalée brutale en coup de tonnerre : TDM sans injection en urgence, puis angioscanner à la recherche d'un anévrisme."},
+ {id:"hip",f:"CT_of_basal_ganglionic_hemorrhage.png",cr:"Mirza et al. · CC BY 4.0",reg:"Neuro",mod:"Scanner (TDM)",fen:"Cérébrale (parenchymateuse)",inj:"Sans injection",plan:"Axial",
+  dx:"Hématome intraparenchymateux profond",dd:["AVC ischémique constitué","Glioblastome","Hématome sous-dural aigu"],
+  why:"Hyperdensité spontanée arrondie des noyaux gris centraux, entourée d'un liseré hypodense (œdème), avec effet de masse. Localisation profonde typique de l'hématome lié à l'HTA."},
+ {id:"dense",f:"Dens_media_sign_mit_Mediainfarkt_-_CCT_001.jpg",crop:[0,0,.5,1],cr:"Hellerhoff · CC BY-SA 3.0",reg:"Neuro",mod:"Scanner (TDM)",fen:"Cérébrale (parenchymateuse)",inj:"Sans injection",plan:"Axial",
+  dx:"AVC ischémique hyperaigu : artère sylvienne hyperdense",dd:["Hémorragie méningée","Hématome intraparenchymateux","Calcification physiologique"],
+  why:"Hyperdensité linéaire spontanée de l'artère cérébrale moyenne : c'est le thrombus (« trop belle artère »). Signe précoce d'AVC ischémique, avant l'hypodensité du parenchyme. On enchaîne avec l'angioscanner pour la thrombectomie."},
+ {id:"dwi",f:"DWI_MRI_of_a_cerebral_infarction.jpg",cr:"Hellerhoff, isolé par Mikael Häggström · CC BY-SA 3.0",reg:"Neuro",mod:"IRM",seq:"Diffusion",plan:"Axial",
+  dx:"AVC ischémique aigu",dd:["Sclérose en plaques","Glioblastome","Hématome sous-dural"],
+  why:"Hypersignal cortico-sous-cortical en diffusion, de topographie artérielle : restriction de la diffusion de l'œdème cytotoxique, visible dès les premières minutes. L'image est floue et peu contrastée : c'est l'aspect habituel de la séquence de diffusion."},
+ {id:"flair",f:"FLAIR_MRI_of_cerebral_infarction.png",crop:[0,0,.5,1],cr:"Mirza et al. · CC BY 4.0",reg:"Neuro",mod:"IRM",seq:"FLAIR",plan:"Axial",
+  dx:"AVC ischémique déjà constitué (plusieurs heures)",dd:["Sclérose en plaques","Encéphalite herpétique","Hématome sous-dural"],
+  why:"FLAIR : le LCR est noir mais les lésions œdémateuses sont en hypersignal. Hypersignal cortico-sous-cortical systématisé au territoire sylvien. Une lésion déjà visible en FLAIR date en général de plus de 4 h 30 (pas de « mismatch » diffusion-FLAIR)."},
+ {id:"adc",f:"Cerebral_infarction_after_4_hours_on_ADC_MRI.jpg",cr:"Shen et al. · CC BY 2.0",reg:"Neuro",mod:"IRM",seq:"Cartographie ADC",plan:"Axial",
+  dxQ:"Sur cette carte, comment apparaît un AVC ischémique aigu ?",dx:"En hyposignal (diffusion restreinte)",dd:["En hypersignal","Il est invisible","En prise de contraste annulaire"],
+  why:"Cartographie ADC : LCR blanc (diffusion libre). L'AVC aigu est en hypersignal en diffusion et en hyposignal sur l'ADC : c'est ce qui confirme une vraie restriction de la diffusion (et non un simple effet T2)."},
+ {id:"sep",f:"MSMRI.png",cr:"James Heilman, MD · CC BY-SA 4.0",reg:"Neuro",mod:"IRM",seq:"T2",plan:"Axial",
+  dx:"Sclérose en plaques",dd:["AVC ischémique aigu","Glioblastome","Leucoaraïose du sujet âgé"],
+  why:"T2 : LCR blanc. Hypersignaux ovoïdes de la substance blanche, périventriculaires, perpendiculaires aux ventricules. Dissémination spatiale (périventriculaire, juxtacorticale, sous-tentorielle, médullaire) et temporelle (prise de gadolinium de certaines lésions seulement)."},
+ {id:"gbm",f:"Glioblastoma_multiforme_-_MRT_T1KM_ax.jpg",cr:"Hellerhoff · CC BY-SA 3.0",reg:"Neuro",mod:"IRM",seq:"T1 avec gadolinium",plan:"Axial",
+  dx:"Glioblastome",dd:["Méningiome","AVC ischémique aigu","Sclérose en plaques"],
+  why:"T1 gadolinium : LCR noir, prise de contraste des structures vasculaires. Masse intra-axiale profonde avec prise de contraste annulaire irrégulière autour d'un centre nécrotique, effet de masse. Le diagnostic différentiel principal d'une prise de contraste annulaire est l'abcès (diffusion en hypersignal dans l'abcès) et la métastase."},
+ {id:"gbmt2",f:"Glioblastoma_multiforme_-_MRT_T2_ax.jpg",cr:"Hellerhoff · CC BY-SA 3.0",reg:"Neuro",mod:"IRM",seq:"T2",plan:"Axial",
+  dx:"Tumeur cérébrale (glioblastome)",dd:["Hématome sous-dural","Hémorragie méningée","Sclérose en plaques"],
+  why:"T2 : LCR blanc. Même glioblastome qu'en T1 gadolinium : masse hétérogène de la région thalamique avec œdème et effet de masse sur le ventricule latéral."},
+ {id:"hernie",f:"Hernie_discale_L4_L5.png",cr:"Miguel Tremblay · CC0",reg:"Ostéo-articulaire",mod:"IRM",seq:"T2",plan:"Sagittal",
+  dx:"Hernie discale lombaire",dd:["Spondylodiscite","Fracture vertébrale tassement","Métastase vertébrale"],
+  why:"T2 sagittal : LCR blanc autour des racines. Saillie du disque dans le canal rachidien aux étages lombaires bas (entourés), au contact des racines. L'IRM n'est indiquée qu'en cas de signe de gravité ou avant un geste."},
+ {id:"pno",f:"Maessiger_Spannungspneumothorax_links_21M_-_CR_pa_-_001.jpg",cr:"Hellerhoff · CC BY-SA 4.0",reg:"Thorax",mod:"Radiographie",inc:"Thorax de face",
+  dx:"Pneumothorax gauche compressif",dd:["Épanchement pleural gauche","Emphysème bulleux","Atélectasie gauche"],
+  why:"Hyperclarté sans trame vasculaire, poumon rétracté vers le hile avec une ligne pleurale visible, refoulement du médiastin du côté opposé : signes de compression (« sous tension »). Exsufflation en urgence si mauvaise tolérance."},
+ {id:"pnp",f:"Mittellappenpneumonie.jpg",cr:"Hellerhoff · CC BY-SA 3.0",reg:"Thorax",mod:"Radiographie",inc:"Thorax de face",
+  dx:"Pneumopathie du lobe moyen",dd:["Épanchement pleural droit","Œdème aigu pulmonaire","Pneumothorax droit"],
+  why:"Opacité alvéolaire systématisée paracardiaque droite qui efface le bord droit du cœur : signe de la silhouette, donc lésion au contact du cœur, c'est-à-dire le lobe moyen. Évoque une pneumonie à pneumocoque."},
+ {id:"epanch",f:"Unilateral_Pleural_Effusion.jpg",cr:"Sara Nabih · CC BY-SA 4.0",reg:"Thorax",mod:"Radiographie",inc:"Thorax de face",
+  dx:"Épanchement pleural de grande abondance",dd:["Pneumopathie lobaire","Atélectasie complète","Pneumothorax compressif"],
+  why:"Opacité dense, homogène, déclive, effaçant la coupole, avec une limite supérieure concave en haut et en dedans (ligne de Damoiseau). De grande abondance, elle refoule le médiastin du côté opposé (une atélectasie l'attirerait)."},
+ {id:"oap",f:"Schmetterlingsoedem_bei_kardialer_Dekompensation_64W_-_CR_ap_-_001.jpg",cr:"Hellerhoff · CC BY-SA 4.0",reg:"Thorax",mod:"Radiographie",inc:"Thorax de face",
+  dx:"Œdème aigu pulmonaire cardiogénique",dd:["Pneumopathie bilatérale","Épanchements pleuraux bilatéraux","Pneumothorax bilatéral"],
+  why:"Opacités alvéolaires bilatérales et symétriques, péri-hilaires « en ailes de papillon », avec cardiomégalie. Cliché réalisé de face au lit (AP)."},
+ {id:"pnotdm",f:"Pneumothorax_CT.jpg",cr:"Clinical Cases (Wikipédia en anglais) · CC BY-SA 2.5",reg:"Thorax",mod:"Scanner (TDM)",fen:"Pulmonaire (parenchymateuse)",inj:"Sans injection",plan:"Axial",
+  dx:"Pneumothorax gauche drainé",dd:["Emphysème bulleux","Embolie pulmonaire","Épanchement pleural"],
+  why:"Fenêtre pulmonaire : le parenchyme et les bronches sont bien visibles, le médiastin est uniformément blanc. Air dans la cavité pleurale à gauche (à droite de l'image, convention radiologique), avec un drain thoracique en place."},
+ {id:"ep",f:"SaddlePE.PNG",cr:"James Heilman, MD · CC BY-SA 3.0",reg:"Thorax",mod:"Scanner (TDM)",fen:"Médiastinale / tissus mous",inj:"Injection, temps artériel",plan:"Axial",
+  dx:"Embolie pulmonaire proximale bilatérale",dd:["Dissection aortique","Adénopathies hilaires","Cancer bronchique hilaire"],
+  why:"Angioscanner thoracique au temps artériel pulmonaire, fenêtre médiastinale : les artères pulmonaires sont blanches (opacifiées) et contiennent des lacunes endoluminales (flèches) : ce sont les caillots."},
+ {id:"dissec",f:"TypeAdissection.png",cr:"James Heilman, MD · CC BY-SA 3.0",reg:"Thorax",mod:"Scanner (TDM)",fen:"Médiastinale / tissus mous",inj:"Injection, temps artériel",plan:"Axial",
+  dx:"Dissection aortique de type A",dd:["Embolie pulmonaire","Anévrisme de l'aorte non disséqué","Péricardite"],
+  why:"Voile intimal séparant un vrai et un faux chenal dans l'aorte ascendante et dans l'aorte descendante (flèches). Atteinte de l'aorte ascendante = type A de Stanford : chirurgie en urgence."},
+ {id:"pneumop",f:"Rigler-Zeichen.jpg",cr:"Hellerhoff · CC BY-SA 3.0",reg:"Abdomen",mod:"Radiographie",inc:"Thorax de face",
+  dx:"Pneumopéritoine",dd:["Occlusion du grêle","Pneumothorax bilatéral","Interposition colique (Chilaïditi)"],
+  why:"Clichés debout : croissants gazeux sous les deux coupoles diaphragmatiques. L'air libre dessine aussi les deux faces de la paroi digestive (signe de Rigler, flèches). Perforation d'organe creux : chirurgie en urgence."},
+ {id:"occl",f:"Upright_X-ray_demonstrating_small_bowel_obstruction.jpg",cr:"James Heilman, MD · CC BY-SA 3.0",reg:"Abdomen",mod:"Radiographie",inc:"Abdomen sans préparation (ASP) debout",
+  dx:"Occlusion du grêle",dd:["Occlusion colique","Pneumopéritoine","Iléus réflexe sans obstacle"],
+  why:"Distension d'anses grêles centrales avec des niveaux hydroaériques plus larges que hauts. Le scanner a remplacé l'ASP pour confirmer, trouver la cause et rechercher des signes de souffrance."},
+ {id:"appendi",f:"Akute_Appendizitis_37W_-_CT_sagittal_KM_pv_-_001.jpg",cr:"Hellerhoff · CC BY-SA 4.0",reg:"Abdomen",mod:"Scanner (TDM)",fen:"Abdominale (tissus mous)",inj:"Injection, temps portal",plan:"Sagittal",
+  dx:"Appendicite aiguë",dd:["Sigmoïdite diverticulaire","Cholécystite aiguë","Colique néphrétique"],
+  why:"Temps portal (veines et parenchymes rehaussés). Appendice augmenté de calibre, à paroi épaissie et rehaussée, avec infiltration de la graisse autour."},
+ {id:"sigmo",f:"Sigmadivertikulitis_AWMF_1b_58W_-_CT_axial_KM_pv_-_001.jpg",cr:"Hellerhoff · CC BY-SA 4.0",reg:"Abdomen",mod:"Scanner (TDM)",fen:"Abdominale (tissus mous)",inj:"Injection, temps portal",plan:"Axial",
+  dx:"Sigmoïdite diverticulaire",dd:["Appendicite aiguë","Cancer du côlon sigmoïde","Torsion d'annexe"],
+  why:"Épaississement de la paroi du sigmoïde, porteur de diverticules, avec infiltration de la graisse péri-sigmoïdienne, sans abcès ni air extradigestif (forme non compliquée)."},
+ {id:"cholectdm",f:"Enlarged_gallbladder_with_gallstone_and_cholecystitis.jpg",cr:"Mikael Häggström · CC0",reg:"Abdomen",mod:"Scanner (TDM)",fen:"Abdominale (tissus mous)",inj:"Injection, temps portal",plan:"Coronal",
+  dx:"Cholécystite aiguë lithiasique",dd:["Appendicite aiguë","Abcès hépatique","Pancréatite aiguë"],
+  why:"Vésicule très distendue à paroi épaissie, avec un calcul calcifié dans sa lumière. Ici, la vésicule descend jusqu'en fosse iliaque droite et mimait une appendicite. Examen de 1re intention : l'échographie."},
+ {id:"cholececho",f:"Ultrasonography_of_cholecystitis.jpg",cr:"Mikael Häggström · CC0",reg:"Abdomen",mod:"Échographie",org:"Vésicule biliaire",
+  dx:"Cholécystite aiguë lithiasique",dd:["Polype vésiculaire","Hydronéphrose","Vésicule normale"],
+  why:"Calculs hyperéchogènes déclives avec cône d'ombre postérieur, paroi vésiculaire épaissie et fine lame de liquide péri-vésiculaire. Signe de Murphy échographique positif à rechercher."},
+ {id:"hydro",f:"Ultrasonography_of_hydronephrosis_with_dilated_anechoic_pelvis_and_calyces,_along_with_cortical_atrophy.jpg",cr:"Hansen, Nielsen et Ewertsen · CC BY 4.0",reg:"Abdomen",mod:"Échographie",org:"Rein",
+  dx:"Dilatation des cavités pyélocalicielles (hydronéphrose)",dd:["Kyste rénal simple","Rein normal","Tumeur du rein"],
+  why:"Bassinet et calices dilatés, anéchogènes (noirs) et communicants, avec un cortex aminci. Devant une colique néphrétique fébrile ou anurique : drainage des urines en urgence."},
+ {id:"geu",f:"Ectopicleftmass.PNG",cr:"James Heilman, MD · CC BY-SA 3.0",reg:"Gynéco-obstétrique",mod:"Échographie",org:"Ovaire / annexe",
+  dx:"Grossesse extra-utérine",dd:["Kyste du corps jaune","Grossesse intra-utérine évolutive","Kyste ovarien simple"],
+  why:"Sac gestationnel en position annexielle, à côté de l'ovaire gauche, hors de l'utérus. Avec des hCG au-dessus du seuil de visibilité d'une grossesse intra-utérine, c'est une GEU jusqu'à preuve du contraire."},
+ {id:"morrison",f:"FluidMorisonsPouchEctop.PNG",cr:"James Heilman, MD · CC BY-SA 3.0",reg:"Gynéco-obstétrique",mod:"Échographie",org:"Espace hépato-rénal (Morrison)",
+  dx:"Hémopéritoine (GEU rompue)",dd:["Hydronéphrose","Ascite cirrhotique","Kyste hépatique"],
+  why:"Épanchement anéchogène entre le foie et le rein droit (espace de Morrison) chez une patiente qui a une GEU : hémopéritoine abondant. Signe de gravité : chirurgie en urgence."},
+ {id:"myome",f:"9cmFibroidUS.png",cr:"James Heilman, MD · CC BY-SA 3.0",reg:"Gynéco-obstétrique",mod:"Échographie",org:"Utérus",
+  dx:"Myome (fibrome) utérin",dd:["Kyste ovarien simple","Grossesse intra-utérine","Adénomyose"],
+  why:"Masse utérine arrondie, bien limitée, hypoéchogène et hétérogène, d'environ 9 cm (repères de mesure). L'échographie pelvienne est l'examen de 1re intention."},
+ {id:"kystehem",f:"Haemorrhagic_ovarian_cyst_ultrasound.jpg",cr:"Mme Mim · CC BY-SA 3.0",reg:"Gynéco-obstétrique",mod:"Échographie",org:"Ovaire / annexe",
+  dx:"Kyste hémorragique de l'ovaire",dd:["Kyste ovarien simple","Kyste dermoïde","Grossesse extra-utérine"],
+  why:"Kyste ovarien à contenu finement échogène, réticulé, en « toile d'araignée » (caillot), sans végétation vascularisée. Kyste fonctionnel compliqué, qui régresse en général spontanément."},
+ {id:"kystesimple",f:"LargeLeftOvCyst5cm.png",cr:"James Heilman, MD · CC BY-SA 4.0",reg:"Gynéco-obstétrique",mod:"Échographie",org:"Ovaire / annexe",
+  dx:"Kyste ovarien simple (fonctionnel)",dd:["Kyste hémorragique","Tumeur maligne de l'ovaire","Hydrosalpinx"],
+  why:"Kyste uniloculaire, totalement anéchogène, à paroi fine et régulière, avec un renforcement postérieur, sans végétation. Chez une femme non ménopausée, on contrôle à distance (2 à 3 mois)."},
+ {id:"mammo",f:"N%C3%B3dulo_BR_5_proyecci%C3%B3n_CC.JPG",cr:"SCiardullo · CC BY-SA 4.0",reg:"Gynéco-obstétrique",mod:"Mammographie",inc:"Craniocaudale (de face)",
+  dx:"Opacité spiculée suspecte (BI-RADS 5)",dd:["Kyste du sein (BI-RADS 2)","Adénofibrome (BI-RADS 3)","Mammographie normale"],
+  why:"Clichés craniocaudaux des deux seins. Opacité plus dense que la glande, à contours irréguliers et spiculés, dans le quadrant supéro-externe du sein droit : très suspecte de cancer (BI-RADS 5), à biopsier."},
+ {id:"col",f:"Mediale_Schenkelhalsfraktur_links_83W_-_CR_ap_-_001.jpg",cr:"Hellerhoff · CC BY-SA 4.0",reg:"Ostéo-articulaire",mod:"Radiographie",inc:"Bassin de face",
+  dx:"Fracture du col du fémur",dd:["Coxarthrose","Fracture du cadre obturateur","Luxation de hanche"],
+  why:"Femme de 83 ans. Trait de fracture du col fémoral gauche (à droite de l'image, convention radiologique). Fracture du col de type médial : chez le sujet âgé, on pose en général une prothèse."}
+];
+/* entraînement : modalité d'abord, puis fenêtre ou séquence et plan pour la bonne modalité, puis diagnostic */
+const IM={reg:"all",queue:[],i:0,ans:{},shown:false,res:[],opts:{}};
+function imSt(){if(!state.imagerie||typeof state.imagerie!=="object")state.imagerie={};const m=state.imagerie;if(!m.res)m.res={};if(!m.k)m.k={};if(!Array.isArray(m.series))m.series=[];return m}
+/* copie hébergée avec le site (dossier imagerie/) ; si elle manque, l'image est chargée depuis Wikimedia Commons */
+function imSrc(c){return "imagerie/"+decodeURIComponent(c.f).replace(/[^A-Za-z0-9._-]+/g,"_")}
+function imAlt(c){return "https://commons.wikimedia.org/wiki/Special:FilePath/"+c.f+"?width="+(c.crop?1280:960)}
+function imShuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function imKey(k){return k==="mod"?"Modalité":k==="dx"?"Diagnostic":k==="plan"?"Plan":"Fenêtre, séquence ou incidence"}
+function imSteps(c){
+  if(!IM.opts[c.id])IM.opts[c.id]=imShuffle([c.dx].concat(c.dd));
+  return [["mod","Modalité",IMG_MOD]].concat(IMG_Q[c.mod]||[]).concat([["dx",c.dxQ||"Diagnostic",IM.opts[c.id]]]);
+}
+function imGood(c,k){return k==="mod"?c.mod:k==="dx"?c.dx:c[k]}
+function imPool(){return IMG_CASES.filter(c=>IM.reg==="all"||c.reg===IM.reg)}
+function imStart(list){IM.queue=imShuffle(list).slice(0,10);IM.i=0;IM.ans={};IM.shown=false;IM.res=[];renderImagerie();$("imMain").scrollIntoView({behavior:"smooth",block:"start"})}
+function imImg(c){
+  const fb=`data-alt="${esc(imAlt(c))}" onerror="if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}"`;
+  const img=`<img src="${esc(imSrc(c))}" ${fb} alt="Image médicale à identifier" referrerpolicy="no-referrer">`;
+  if(!c.crop)return `<div class="im-frame">${img}</div>`;
+  const [x0,,x1]=c.crop,w=x1-x0;
+  return `<div class="im-frame"><div class="im-crop"><img src="${esc(imSrc(c))}" ${fb} alt="Image médicale à identifier" referrerpolicy="no-referrer" style="width:${(100/w).toFixed(3)}%;margin-left:${(-x0/w*100).toFixed(3)}%"></div></div>`;
+}
+function renderImagerie(){
+  const m=imSt();
+  $("imReg").innerHTML=["all"].concat(IMG_REG).map(r=>{const n=r==="all"?IMG_CASES.length:IMG_CASES.filter(c=>c.reg===r).length;return `<button type="button" class="im-chip${IM.reg===r?" on":""}" data-imreg="${esc(r)}">${r==="all"?"Toutes":esc(r)} <small>${n}</small></button>`}).join("");
+  const vus=IMG_CASES.filter(c=>m.res[c.id]),ok=vus.filter(c=>m.res[c.id].last);
+  const err=IMG_CASES.filter(c=>m.res[c.id]&&!m.res[c.id].last);
+  $("imErr").disabled=!err.length;$("imErr").textContent=err.length?`Revoir mes erreurs (${err.length})`:"Revoir mes erreurs";
+  const pct=k=>{const v=m.k[k];return v&&v[1]?Math.round(v[0]/v[1]*100)+" %":"—"};
+  $("imStats").innerHTML=`<p style="margin:0">${vus.length} image${vus.length>1?"s":""} vue${vus.length>1?"s":""} sur ${IMG_CASES.length} · ${ok.length} réussie${ok.length>1?"s":""} sans faute la dernière fois</p>
+    <div class="im-kpis"><span>Modalité<b>${pct("mod")}</b></span><span>Fenêtre, séquence<b>${pct("tech")}</b></span><span>Plan<b>${pct("plan")}</b></span><span>Diagnostic<b>${pct("dx")}</b></span></div>`;
+  const c=IM.queue[IM.i];
+  if(!IM.queue.length){
+    const last=m.series.length?m.series[m.series.length-1]:null;
+    $("imMain").innerHTML=`<div class="qz"><h2 style="margin:0">Imagerie</h2><p style="margin:0">Choisis une région à gauche, puis lance une série de 10 images. Pour chacune : la modalité, puis la fenêtre ou la séquence et le plan, puis le diagnostic. La correction explique ce qu'il fallait voir.</p>${last?`<p class="saved" style="margin:0">Dernière série : ${last.score} % le ${fmt(last.d)}</p>`:""}<div class="qz-actions"><button class="btn primary" type="button" data-im="go">Commencer une série</button></div></div>`;
+    return;
+  }
+  if(!c){
+    const tot=IM.res.reduce((a,r)=>a+r.pts,0),max=IM.res.reduce((a,r)=>a+r.max,0),score=max?Math.round(tot/max*100):0;
+    $("imMain").innerHTML=`<div class="qz qz-end"><div class="qz-big num">${score} %</div><p style="margin:0">${IM.res.filter(r=>r.pts===r.max).length} image${IM.res.length>1?"s":""} sur ${IM.res.length} sans faute.</p>
+      <div class="im-recap">${IM.res.map(r=>{const k=IMG_CASES.find(x=>x.id===r.id);return `<div class="${r.pts===r.max?"ok":"ko"}"><span>${esc(k.dx)}</span><small>${r.pts}/${r.max}${r.faux.length?" · à revoir : "+r.faux.map(imKey).join(", ").toLowerCase():""}</small></div>`}).join("")}</div>
+      <div class="qz-actions"><button class="btn primary" type="button" data-im="go">Nouvelle série</button>${IM.res.some(r=>r.pts<r.max)?`<button class="btn" type="button" data-im="err">Revoir mes erreurs</button>`:""}<button class="btn" type="button" data-im="home">Terminer</button></div></div>`;
+    return;
+  }
+  const steps=imSteps(c),modOk=IM.ans.mod!=null;
+  const q=steps.map(([k,lab,opts],si)=>{
+    if(si>0&&!modOk)return "";
+    const lock=IM.shown||(k==="mod"&&modOk);
+    const btns=opts.map(o=>{let cls=IM.ans[k]===o?" on":"";if(lock){const g=imGood(c,k);cls=IM.ans[k]===o?(o===g?" ok":" ko"):(o===g?" miss":"")}
+      return `<button type="button" class="im-opt${cls}" data-imq="${k}" data-v="${esc(o)}" ${lock?"disabled":""}>${esc(o)}</button>`}).join("");
+    return `<div class="im-q"><div class="label">${esc(lab)}</div><div class="im-opts">${btns}</div></div>`}).join("");
+  const allAns=steps.every(([k])=>IM.ans[k]!=null);
+  $("imMain").innerHTML=`<div class="qz"><div class="qz-top"><span class="num">Image ${IM.i+1} / ${IM.queue.length}</span><span>${esc(c.reg)}</span></div>
+    ${imImg(c)}<p class="im-credit">Image : ${esc(c.cr)} · <a href="https://commons.wikimedia.org/wiki/File:${esc(c.f)}" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+    ${q}
+    ${IM.shown?`<div class="qz-res"><b>${esc(c.dx)}</b><br>${esc(c.why)}</div>`:""}
+    <div class="qz-actions">${IM.shown?`<button class="btn primary" type="button" data-im="next">${IM.i+1<IM.queue.length?"Image suivante":"Voir mon score"}</button>`:modOk?`<button class="btn primary" type="button" data-im="check" ${allAns?"":"disabled"}>Valider</button>`:`<span class="hint">Commence par la modalité.</span>`}<button class="btn" type="button" data-im="home">Arrêter</button></div></div>`;
+}
+function imCheck(){
+  const c=IM.queue[IM.i],m=imSt(),steps=imSteps(c);let pts=0;const faux=[];
+  for(const [k] of steps){const ok=IM.ans[k]===imGood(c,k);if(ok)pts++;else faux.push(k);
+    const kk=k==="mod"||k==="dx"||k==="plan"?k:"tech";const v=m.k[kk]||(m.k[kk]=[0,0]);v[1]++;if(ok)v[0]++}
+  const r=m.res[c.id]||(m.res[c.id]={n:0,ok:0});r.n++;if(!faux.length)r.ok++;r.last=!faux.length;r.d=todayIso;
+  IM.res.push({id:c.id,pts,max:steps.length,faux});IM.shown=true;
+  if(IM.i+1>=IM.queue.length){const tot=IM.res.reduce((a,x)=>a+x.pts,0),max=IM.res.reduce((a,x)=>a+x.max,0);m.series.push({d:todayIso,score:max?Math.round(tot/max*100):0,n:IM.res.length});if(m.series.length>200)m.series=m.series.slice(-200)}
+  save();renderImagerie();
+}
+$("imgView").addEventListener("click",e=>{
+  const r=e.target.closest("[data-imreg]");if(r){IM.reg=r.dataset.imreg;renderImagerie();return}
+  const o=e.target.closest("[data-imq]");if(o&&!o.disabled){IM.ans[o.dataset.imq]=o.dataset.v;renderImagerie();return}
+  const b=e.target.closest("[data-im]");if(!b)return;const a=b.dataset.im;
+  if(a==="go"){const p=imPool();if(!p.length){toast("Aucune image dans cette région.");return}imStart(p);return}
+  if(a==="err"){const m=imSt();const l=IMG_CASES.filter(c=>m.res[c.id]&&!m.res[c.id].last);if(!l.length){toast("Aucune erreur à revoir.");return}imStart(l);return}
+  if(a==="home"){IM.queue=[];IM.i=0;IM.ans={};IM.shown=false;renderImagerie();return}
+  if(a==="check"){imCheck();return}
+  if(a==="next"){IM.i++;IM.ans={};IM.shown=false;renderImagerie();$("imMain").scrollIntoView({behavior:"smooth",block:"start"});return}
+});
+$("imGo").onclick=()=>{const p=imPool();if(!p.length){toast("Aucune image dans cette région.");return}imStart(p)};
+$("imErr").onclick=()=>{const m=imSt();const l=IMG_CASES.filter(c=>m.res[c.id]&&!m.res[c.id].last);if(l.length)imStart(l)};
 /* ---------- LCA : sujet, correction et erreurs par article ---------- */
 const FILE_API="https://margauxbouriez2.app.n8n.cloud/webhook/carnet-fichiers";
 const LF={id:null,blobs:{},busy:false};
@@ -1736,7 +1972,7 @@ async function api(body){
   const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),cache:"no-store"});
   if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }
-function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[])),flash:JSON.parse(JSON.stringify(d.flash||[]))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
+function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[])),flash:JSON.parse(JSON.stringify(d.flash||[])),imagerie:JSON.parse(JSON.stringify(d.imagerie||{}))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
 function alertes(){
   const a=[E,LCA].filter(x=>x&&x.alerte).map(x=>`<span>${esc(x.alerte)}${x.alerteLien?` <a href="${esc(x.alerteLien)}" target="_blank" rel="noopener">Se reconnecter</a>`:""}</span>`);
   $("alerte").innerHTML=a.join("");$("alerte").hidden=!a.length;
