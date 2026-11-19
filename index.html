@@ -289,6 +289,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .rv-card:focus-visible{border-color:var(--accent)}
 .rv-q{font-weight:600;font-size:1.12rem;line-height:1.45;text-align:center}
 .rv-r{border-top:1px dashed var(--line);padding-top:14px;line-height:1.55}
+.rv-r.rv-seul{border-top:0;padding-top:0;margin:auto 0}
 .rv-r.styled{background:#fff;color:#16213d;border:1px solid var(--line);border-radius:8px;padding:10px 14px}
 .rv-tip{margin-top:auto;text-align:center;color:var(--muted);font-size:.85rem}
 .rv-keys{font-size:.78rem;color:var(--muted);margin:0}
@@ -1541,8 +1542,7 @@ function rvRender(s){
     <div class="qz-top"><span class="num">Carte ${z.pos+1} / ${n}</span><span>${c.rang?"Rang "+esc(c.rang)+" · ":""}${esc(c.theme||"")}${z.again.size?` · ${z.again.size} à revoir`:""}</span></div>
     <div class="rv-bar"><i style="width:${Math.round(z.pos/n*100)}%"></i></div>
     <div class="rv-card" data-rv="flip" tabindex="0" role="button" aria-label="${z.shown?"Carte suivante":"Retourner la carte"}">
-      <div class="rv-q">${flFront(s,c)}</div>
-      ${z.shown?`<div class="rv-r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>`:`<div class="rv-tip">Espace ou clic pour retourner</div>`}
+      ${z.shown?`<div class="rv-r rv-seul${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>`:`<div class="rv-q">${flFront(s,c)}</div><div class="rv-tip">Espace ou clic pour retourner</div>`}
     </div>
     <div class="qz-actions">${z.shown?`<button class="btn primary" type="button" data-rv="next">Suivante</button><button class="btn" type="button" data-rv="mark">À revoir</button>`:`<button class="btn primary" type="button" data-rv="flip">Retourner</button>`}${z.pos?`<button class="btn" type="button" data-rv="prev">Précédente</button>`:""}<button class="btn" type="button" data-rv="full">${rvIsFull()?"Quitter le plein écran":"Plein écran"}</button><button class="btn" type="button" data-rv="quit">Arrêter</button></div>
     <p class="rv-keys"><kbd>Espace</kbd> retourner, puis carte suivante · <kbd>1</kbd> à revoir (revient en fin de paquet) · <kbd>←</kbd> précédente · <kbd>F</kbd> plein écran · <kbd>Échap</kbd> ${rvIsFull()?"quitter le plein écran":"arrêter"}</p></div>`;
