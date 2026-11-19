@@ -1386,34 +1386,51 @@ function qzPages(s){
   if(!p1||!p2||p2<p1||(f&&f!==FLS.file))return null;
   return [p1,Math.min(p2,FLS.doc.numPages,p1+60)];
 }
-async function qzMore(s){
+async function qzMore(s0){
   const focus=($("qzMiss")&&$("qzMiss").value||"").trim().slice(0,400),n=+($("qzMissN")&&$("qzMissN").value)||10;
-  if(!focus){FLS.more={sid:s.id,focus:"",n,msg:"Écris d'abord les notions qui manquent."};renderFlash();return}
+  const QC=s0.kind==="qcm",MOT=QC?"Les QCM":"Les cartes";
+  if(!focus){FLS.more={sid:s0.id,focus:"",n,msg:"Écris d'abord les notions qui manquent."};renderFlash();return}
   if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
   if(FLS.busy||(FLS.more&&FLS.more.busy))return;
-  const QC=s.kind==="qcm",LIST=QC?s.qs:s.cards;
-  FLS.more={sid:s.id,focus,n,busy:true};renderFlash();
-  FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),200000);
+  const sid=s0.id;
+  FLS.more={sid,focus,n,busy:true};renderFlash();
+  FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),420000);
   let msg;
   try{
-    let texte="";const pg=qzPages(s);
+    let texte="";const pg=qzPages(s0);
     if(pg){const parts=[];for(let p=pg[0];p<=pg[1];p++)parts.push(`[page ${p}]\n`+await flPageText(p));texte=parts.join("\n\n").slice(0,150000)}
-    const j=await flCall({item:s.item,titre:s.titre||"",college:s.college||"",genre:QC?"qcm":"",style:QC?"":s.style||"",nombre:n,focus,texte,eviter:LIST.map(q=>String(q.q).replace(/<[^>]+>/g,"").slice(0,200)).slice(-80)});
-    const recus=j&&j.ok?(QC?j.qcms:j.cartes):null;
-    if(Array.isArray(recus)&&recus.length){
+    const L0=QC?s0.qs:s0.cards;
+    const base={item:s0.item,titre:s0.titre||"",college:s0.college||"",genre:QC?"qcm":"",style:QC?"":s0.style||"",focus,texte,eviter:L0.map(q=>String(q.q).replace(/<[^>]+>/g,"").slice(0,200)).slice(-80)};
+    /* demandes de 5 au plus, envoyées en parallèle : une grosse demande dépassait le délai */
+    const tailles=[];for(let r=n;r>0;r-=5)tailles.push(Math.min(5,r));
+    let ko=0,cleKo=false,refus=null;
+    const res=await Promise.all(tailles.map(async(nb,i)=>{
+      for(let essai=0;essai<2;essai++){
+        try{const j=await flCall(Object.assign({},base,{nombre:nb,partie:(i+1)+"/"+tailles.length}));
+          if(j&&j.ok)return (QC?j.qcms:j.cartes)||[];
+          if(j&&j.erreur==="cle"){cleKo=true;return []}
+          if(j&&j.erreur==="refus"){refus=j.message||"Demande non traitée.";return []}
+        }catch(e){if(e.name==="AbortError")throw e}
+      }
+      ko++;return [];
+    }));
+    const recus=[].concat(...res);
+    const s=flCur()&&flCur().id===sid?flCur():(state.flash.find(x=>x.id===sid)||s0);
+    const LIST=QC?s.qs:s.cards;
+    if(recus.length){
       const cle=q=>String(q.q).replace(/^\s*\d+\.\s*/,"").toLowerCase().trim();
       const vus=new Set(LIST.map(cle));
       const neufs=recus.filter(q=>{const k=cle(q);if(vus.has(k))return false;vus.add(k);return true});
-      if(!QC)neufs.forEach(c=>{c.nv=true});
+      if(!QC){neufs.forEach(c=>{c.nv=true});if(s.style==="fiche"){let k=LIST.length;neufs.forEach(c=>{c.q=String(++k).padStart(2,"0")+". "+String(c.q).replace(/^\s*\d+\.\s*/,"")})}}
       LIST.push(...neufs);(s.ajouts=s.ajouts||[]).push({d:todayIso,focus,n:neufs.length});save();
       const nb=neufs.length,mot=QC?"QCM":"carte"+(nb>1?"s":""),acc=QC?"ajouté"+(nb>1?"s":""):"ajoutée"+(nb>1?"s":"");
-      msg=nb?`${nb} ${mot} ${acc} sur « ${focus} ». ${QC?"La série en compte maintenant "+LIST.length+".":(nb>1?"Elles sont":"Elle est")+" en bas de la liste"+(s.sent?" : « Envoyer dans Anki » n'enverra que "+(nb>1?"ces nouvelles cartes.":"cette nouvelle carte."):".")}`:"Claude n'a rien trouvé de nouveau à ajouter sur ces notions.";
-      FLS.more={sid:s.id,focus:"",n,msg};if(FLS.quiz&&FLS.quiz.sid===s.id)FLS.quiz=null;renderFlash();return;
+      msg=nb?`${nb} ${mot} ${acc} sur « ${focus} ». ${QC?"La série en compte maintenant "+LIST.length+".":(nb>1?"Elles sont":"Elle est")+" en bas de la liste"+(s.sent?" : « Envoyer dans Anki » n'enverra que "+(nb>1?"ces nouvelles cartes.":"cette nouvelle carte."):".")}`+(ko?" Une partie n'a pas pu être rédigée : relance pour compléter.":""):"Claude n'a rien trouvé de nouveau à ajouter sur ces notions.";
+      FLS.more={sid,focus:"",n,msg};if(FLS.quiz&&FLS.quiz.sid===sid)FLS.quiz=null;renderFlash();return;
     }
-    msg=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":j&&j.erreur==="refus"?(j.message||"Demande non traitée."):"Les QCM n'ont pas pu être rédigés. Réessaie dans un instant.";
-  }catch(e){msg=e.name==="AbortError"?"La rédaction a pris trop de temps. Réessaie avec moins de QCM.":"Les QCM n'ont pas pu être rédigés. Vérifie ta connexion et réessaie."}
-  finally{clearTimeout(to)}
-  FLS.more={sid:s.id,focus,n,msg};renderFlash();
+    msg=cleKo?"Clé du carnet refusée : rouvre le carnet avec ton lien.":refus?refus:`${MOT} n'ont pas pu être rédigé${QC?"s":"es"}. Réessaie dans un instant.`;
+  }catch(e){msg=e.name==="AbortError"?"La rédaction a pris trop de temps. Réessaie avec moins de "+(QC?"QCM.":"cartes."):`${MOT} n'ont pas pu être rédigé${QC?"s":"es"}. Vérifie ta connexion et réessaie.`}
+  finally{clearTimeout(to);FLS.ctl=null}
+  FLS.more={sid,focus,n,msg};renderFlash();
 }
 function qzRender(s){
   const z=FLS.quiz&&FLS.quiz.sid===s.id?FLS.quiz:null,n=s.qs.length,c=flCourse(s.item);
@@ -1980,7 +1997,7 @@ function alertes(){
 function appliquer(docs){
   if(docs.edn&&!docs.edn.inchange&&docs.edn.data){E=docs.edn.data;V.edn=docs.edn.version;try{localStorage.setItem("carnet-edn",JSON.stringify(E))}catch(e){}}
   if(docs.lca&&!docs.lca.inchange&&docs.lca.data){LCA=docs.lca.data;V.lca=docs.lca.version;try{localStorage.setItem("carnet-lca",JSON.stringify(LCA))}catch(e){}}
-  if(docs.state&&!docs.state.inchange&&docs.state.data&&!saveTimer){setState(docs.state.data);V.state=docs.state.version}
+  if(docs.state&&!docs.state.inchange&&docs.state.data&&!saveTimer&&!FLS.busy&&!(FLS.more&&FLS.more.busy)){setState(docs.state.data);V.state=docs.state.version}
   keepV();render();if(!$("picker").hidden)renderDay();alertes();
 }
 /* première ouverture : copie chiffrée du carnet Claude, envoyée une seule fois vers n8n */
