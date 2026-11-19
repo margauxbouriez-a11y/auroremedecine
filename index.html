@@ -292,6 +292,11 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .rv-r.styled{background:#fff;color:#16213d;border:1px solid var(--line);border-radius:8px;padding:10px 14px}
 .rv-tip{margin-top:auto;text-align:center;color:var(--muted);font-size:.85rem}
 .rv-keys{font-size:.78rem;color:var(--muted);margin:0}
+#flCards.rv-full{position:fixed;inset:0;z-index:1000;margin:0;background:var(--bg,#eef1f6);overflow:auto;padding:4vh 4vw;display:block}
+#flCards.rv-full .rv,#flCards.rv-full .qz-end{max-width:980px;margin:0 auto;min-height:92vh;justify-content:center}
+#flCards.rv-full .rv-card{min-height:55vh;padding:5vh 4vw;justify-content:center}
+#flCards.rv-full .rv-q{font-size:1.7rem}
+#flCards.rv-full .rv-r{font-size:1.3rem}
 .rv-keys kbd{font-family:var(--f-mono);font-size:.74rem;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface)}
 .fc-bar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .fc-actions{display:flex;gap:6px;flex-wrap:wrap}
@@ -1527,7 +1532,7 @@ function rvRender(s){
     const nb=z.again.size;
     $("flCards").innerHTML=`<div class="qz qz-end"><div class="qz-big num">Terminé</div>
       <p style="margin:0">${z.total} carte${z.total>1?"s":""} révisée${z.total>1?"s":""}${nb?` · ${nb} marquée${nb>1?"s":""} « à revoir »`:" · aucune à revoir"}.</p>
-      <div class="qz-actions">${nb?`<button class="btn primary" type="button" data-rv="again">Revoir les ${nb} carte${nb>1?"s":""} à revoir</button>`:""}<button class="btn${nb?"":" primary"}" type="button" data-rv="restart">Recommencer le paquet</button><button class="btn" type="button" data-rv="quit">Terminer</button></div>
+      <div class="qz-actions">${nb?`<button class="btn primary" type="button" data-rv="again">Revoir les ${nb} carte${nb>1?"s":""} à revoir</button>`:""}<button class="btn${nb?"":" primary"}" type="button" data-rv="restart">Recommencer le paquet</button><button class="btn" type="button" data-rv="quit">Terminer</button>${rvIsFull()?`<button class="btn" type="button" data-rv="full">Quitter le plein écran</button>`:""}</div>
       <p class="rv-keys"><kbd>Espace</kbd> ${nb?"revoir les cartes à revoir":"recommencer"} · <kbd>Échap</kbd> terminer</p></div>`;
     return;
   }
@@ -1539,13 +1544,32 @@ function rvRender(s){
       <div class="rv-q">${flFront(s,c)}</div>
       ${z.shown?`<div class="rv-r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>`:`<div class="rv-tip">Espace ou clic pour retourner</div>`}
     </div>
-    <div class="qz-actions">${z.shown?`<button class="btn primary" type="button" data-rv="next">Suivante</button><button class="btn" type="button" data-rv="mark">À revoir</button>`:`<button class="btn primary" type="button" data-rv="flip">Retourner</button>`}${z.pos?`<button class="btn" type="button" data-rv="prev">Précédente</button>`:""}<button class="btn" type="button" data-rv="quit">Arrêter</button></div>
-    <p class="rv-keys"><kbd>Espace</kbd> retourner, puis carte suivante · <kbd>1</kbd> à revoir (revient en fin de paquet) · <kbd>←</kbd> précédente · <kbd>Échap</kbd> arrêter</p></div>`;
+    <div class="qz-actions">${z.shown?`<button class="btn primary" type="button" data-rv="next">Suivante</button><button class="btn" type="button" data-rv="mark">À revoir</button>`:`<button class="btn primary" type="button" data-rv="flip">Retourner</button>`}${z.pos?`<button class="btn" type="button" data-rv="prev">Précédente</button>`:""}<button class="btn" type="button" data-rv="full">${rvIsFull()?"Quitter le plein écran":"Plein écran"}</button><button class="btn" type="button" data-rv="quit">Arrêter</button></div>
+    <p class="rv-keys"><kbd>Espace</kbd> retourner, puis carte suivante · <kbd>1</kbd> à revoir (revient en fin de paquet) · <kbd>←</kbd> précédente · <kbd>F</kbd> plein écran · <kbd>Échap</kbd> ${rvIsFull()?"quitter le plein écran":"arrêter"}</p></div>`;
 }
+/* plein écran : API du navigateur si possible (Mac, PC, iPad), sinon la zone des cartes couvre toute la fenêtre (iPhone) */
+function rvIsFull(){return $("flCards").classList.contains("rv-full")}
+function rvFull(on){
+  const el=$("flCards"),natif=document.fullscreenElement||document.webkitFullscreenElement;
+  if(on==null)on=!rvIsFull();
+  if(on){
+    el.classList.add("rv-full");
+    const req=el.requestFullscreen||el.webkitRequestFullscreen;
+    if(req&&!natif){try{const r=req.call(el);if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+  }else{
+    el.classList.remove("rv-full");
+    if(natif){const ex=document.exitFullscreen||document.webkitExitFullscreen;try{const r=ex&&ex.call(document);if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+  }
+  const s=flCur();if(FLS.rev&&s)rvRender(s);
+}
+["fullscreenchange","webkitfullscreenchange"].forEach(ev=>document.addEventListener(ev,()=>{
+  if(!(document.fullscreenElement||document.webkitFullscreenElement)&&rvIsFull()){$("flCards").classList.remove("rv-full");const s=flCur();if(FLS.rev&&s)rvRender(s)}
+}));
 function rvAct(a){
   const s=flCur(),z=FLS.rev;if(!s||!z||z.sid!==s.id)return;
   const fini=z.pos>=z.queue.length;
-  if(a==="quit"){FLS.rev=null;renderFlash();return}
+  if(a==="full"){rvFull();return}
+  if(a==="quit"){if(rvIsFull())rvFull(false);FLS.rev=null;renderFlash();return}
   if(fini){
     if(a==="again"||(a==="flip"&&z.again.size)){rvStart(s,z.melange,[...z.again])}
     else if(a==="restart"||a==="flip"){rvStart(s,z.melange)}
@@ -1564,13 +1588,14 @@ $("flCards").addEventListener("click",e=>{const b=e.target.closest("[data-rv]");
 document.addEventListener("keydown",e=>{
   if(!FLS.rev||e.metaKey||e.ctrlKey||e.altKey)return;
   const t=e.target;if(t&&(/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)||t.isContentEditable))return;
-  if(!$("flCards").offsetParent)return; /* onglet Flashcards caché */
+  if(!$("flCards").getClientRects().length)return; /* onglet Flashcards caché (offsetParent est nul en plein écran) */
   const k=e.key;
   if(k===" "||k==="Spacebar"||k==="Enter"){e.preventDefault();if(t&&t.tagName==="BUTTON")t.blur();/* évite que le bouton qui a le focus soit aussi cliqué */rvAct("flip")}
   else if(k==="1"||k==="r"||k==="R"){if(FLS.rev.shown){e.preventDefault();rvAct("mark")}}
   else if(k==="ArrowRight"){e.preventDefault();rvAct(FLS.rev.shown?"next":"flip")}
   else if(k==="ArrowLeft"){e.preventDefault();rvAct("prev")}
-  else if(k==="Escape"){e.preventDefault();rvAct("quit")}
+  else if(k==="f"||k==="F"){e.preventDefault();rvFull()}
+  else if(k==="Escape"){e.preventDefault();if(rvIsFull())rvFull(false);else rvAct("quit")}
 });
 function renderFlash(){
   const L=state.flash;
@@ -1587,6 +1612,7 @@ function renderFlash(){
   $("flDel").textContent=FLS.delArm&&Date.now()-FLS.delArm<4000?"Confirmer la suppression":"Supprimer le paquet";
   if(!s){$("flCards").innerHTML='<div class="fc-empty" style="color:var(--muted)">Indique un numéro d\'item, ajoute si possible le PDF du collège, puis touche Générer les cartes.</div>';return}
   if(FLS.rev&&FLS.rev.sid!==s.id)FLS.rev=null;
+  if(!FLS.rev&&rvIsFull())rvFull(false);
   if(FLS.rev){rvRender(s);return}
   if(!s.deck||/^EDN::|^EDN 2024 - Mes cartes$|^EDN 2024::Apprentissage::/i.test(s.deck))s.deck=flDefaultDeck(s);
   else if(/^EDN 2024 - Mes cartes::Apprentissage(::|$)/i.test(s.deck))s.deck=s.deck.replace(/^EDN 2024 - Mes cartes::Apprentissage/i,"EDN 2024 - Apprentissage");
