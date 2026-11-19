@@ -481,7 +481,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
           <label class="label" for="flItem">Item</label>
           <div class="addrow fc-form"><input type="text" id="flItem" list="flItems" placeholder="N° de l'item (ex. 103)" autocomplete="off" required><select id="flNb" aria-label="Nombre de cartes"><option value="auto" selected>Tout l'item (1 carte par paragraphe)</option><option value="20">20 cartes</option><option value="30">30 cartes</option><option value="40">40 cartes</option></select></div>
           <label class="label" for="flStyle" id="flStyleL">Style des cartes</label>
-          <div class="addrow" id="flStyleRow"><select id="flStyle" class="fl-sel"><option value="fiche">Comme mes cartes EDN 2024 (en couleurs)</option><option value="qa">Questions-réponses courtes</option></select></div>
+          <div class="addrow" id="flStyleRow"><select id="flStyle" class="fl-sel"><option value="notion">Notions : recto = la notion, verso = ce qu'il faut savoir (en couleurs)</option><option value="fiche">Comme mes cartes EDN 2024 (en couleurs)</option><option value="qa">Questions-réponses courtes</option></select></div>
           <datalist id="flItems"></datalist>
           <label class="label" for="flCol">Collège</label>
           <div class="addrow"><input type="text" id="flCol" list="flCols" placeholder="Ex. Neurologie" autocomplete="off"></div>
@@ -1379,7 +1379,9 @@ function flStyled(t){
   const inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,'<font color="#ff0000"><b>$1</b></font>').replace(/\[\[(.+?)\]\]/g,'<font color="#00aa00">$1</font>').replace(/\{\{(.+?)\}\}/g,'<font color="#0000ff">$1</font>').replace(/(^|[\s(=:,])_(\S(?:.*?\S)?)_(?=$|[\s).,;:])/g,'$1<i>$2</i>');
   return String(t||"").split(/\n+/).map(l=>{l=l.trim();if(!l)return "";const m=l.match(/^(\d+\))\s*(.*)$/);return "<div>"+(m?"<b>"+m[1]+"</b> "+inl(m[2]):inl(l))+"</div>"}).join("");
 }
-function flBack(s,c){return s.style==="fiche"?flStyled(c.r):flHtml(c.r)}
+/* styles en couleurs : « fiche » (NN. Sujet (aspect)) et « notion » (recto = nom de la notion) */
+function flColor(s){return s.style==="fiche"||s.style==="notion"}
+function flBack(s,c){return flColor(s)?flStyled(c.r):flHtml(c.r)}
 /* ---------- QCM niveau EDN (5 propositions) : une question à la fois, notation EDN, erreurs dans le carnet, série comptée en révision ---------- */
 const QZL=["A","B","C","D","E"];
 /* barème EDN des QRM : 0 discordance = 1 point, 1 = 0,5, 2 = 0,2, au-delà = 0 ; aucune case cochée = 0 */
@@ -1520,7 +1522,7 @@ function flKindUi(){
   if(!FLS.doc)$("flPdfName").textContent=(QC?"Recommandé : les QCM viennent alors du chapitre de l'item":"Recommandé : les cartes viennent alors du chapitre de l'item");
 }
 $("flKind").onchange=()=>{try{localStorage.setItem("carnet-fl-kind",$("flKind").value)}catch(e){}flKindUi()};
-function flFront(s,c){return s.style==="fiche"?esc(c.q):flHtml(c.q)}
+function flFront(s,c){return flColor(s)?esc(c.q):flHtml(c.q)}
 /* ---------- révision façon Anki : Espace retourne la carte, puis passe à la suivante ---------- */
 function rvStart(s,melange,seulement){
   let L=seulement&&seulement.length?seulement.slice():s.cards.map((c,i)=>i).filter(i=>!s.cards[i].off);
@@ -1542,7 +1544,7 @@ function rvRender(s){
     <div class="qz-top"><span class="num">Carte ${z.pos+1} / ${n}</span><span>${c.rang?"Rang "+esc(c.rang)+" · ":""}${esc(c.theme||"")}${z.again.size?` · ${z.again.size} à revoir`:""}</span></div>
     <div class="rv-bar"><i style="width:${Math.round(z.pos/n*100)}%"></i></div>
     <div class="rv-card" data-rv="flip" tabindex="0" role="button" aria-label="${z.shown?"Carte suivante":"Retourner la carte"}">
-      ${z.shown?`<div class="rv-r rv-seul${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>`:`<div class="rv-q">${flFront(s,c)}</div><div class="rv-tip">Espace ou clic pour retourner</div>`}
+      ${z.shown?`<div class="rv-r rv-seul${flColor(s)?" styled":""}">${flBack(s,c)}</div>`:`<div class="rv-q">${flFront(s,c)}</div><div class="rv-tip">Espace ou clic pour retourner</div>`}
     </div>
     <div class="qz-actions">${z.shown?`<button class="btn primary" type="button" data-rv="next">Suivante</button><button class="btn" type="button" data-rv="mark">À revoir</button>`:`<button class="btn primary" type="button" data-rv="flip">Retourner</button>`}${z.pos?`<button class="btn" type="button" data-rv="prev">Précédente</button>`:""}<button class="btn" type="button" data-rv="full">${rvIsFull()?"Quitter le plein écran":"Plein écran"}</button><button class="btn" type="button" data-rv="quit">Arrêter</button></div>
     <p class="rv-keys"><kbd>Espace</kbd> retourner, puis carte suivante · <kbd>1</kbd> à revoir (revient en fin de paquet) · <kbd>←</kbd> précédente · <kbd>F</kbd> plein écran · <kbd>Échap</kbd> ${rvIsFull()?"quitter le plein écran":"arrêter"}</p></div>`;
@@ -1618,7 +1620,7 @@ function renderFlash(){
   else if(/^EDN 2024 - Mes cartes::Apprentissage(::|$)/i.test(s.deck))s.deck=s.deck.replace(/^EDN 2024 - Mes cartes::Apprentissage/i,"EDN 2024 - Apprentissage");
   if(document.activeElement!==$("flDeck"))$("flDeck").value=s.deck;
   const nRev=s.cards.filter(c=>!c.off).length;
-  $("flCards").innerHTML=(nRev?`<div class="qz-actions"><button class="btn primary" type="button" data-rv="start">Réviser (comme dans Anki)</button><button class="btn" type="button" data-rv="mix">Réviser dans le désordre</button></div>`:"")+`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+qzAddHtml(s)+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flFront(s,c)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r${s.style==="fiche"?" styled":""}">${flBack(s,c)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
+  $("flCards").innerHTML=(nRev?`<div class="qz-actions"><button class="btn primary" type="button" data-rv="start">Réviser (comme dans Anki)</button><button class="btn" type="button" data-rv="mix">Réviser dans le désordre</button></div>`:"")+`<p class="hint" style="margin:0">${s.cards.filter(c=>!c.off).length} cartes retenues sur ${s.cards.length} · ${esc(s.src||"")}. Décoche celles que tu ne veux pas envoyer.</p>`+qzAddHtml(s)+s.cards.map((c,i)=>`<div class="fl-card${c.off?" off":""}"><input type="checkbox" data-flkeep="${i}" ${c.off?"":"checked"} aria-label="Garder cette carte"><div class="q">${flFront(s,c)}</div><button type="button" class="x" data-flrm="${i}" aria-label="Supprimer la carte">×</button><div class="r${flColor(s)?" styled":""}">${flBack(s,c)}</div>${c.rang||c.theme?`<div class="meta">${c.rang?`<span class="rang">Rang ${esc(c.rang)}</span>`:""}${c.theme?`<span>${esc(c.theme)}</span>`:""}</div>`:""}</div>`).join("");
 }
 function flBusy(b,msg){
   FLS.busy=b;$("flGo").disabled=b;$("flStop").hidden=!b;renderFlash();
@@ -1750,7 +1752,7 @@ $("flForm").onsubmit=async e=>{
 const FL_FOCUS=["définition, épidémiologie, rappels anatomiques et physiopathologie utiles","sémiologie clinique, formes cliniques, examen clinique et examens complémentaires","diagnostics différentiels, étiologies, traitement et prise en charge, complications, surveillance, urgences et pièges"];
 async function flGenAuto(base,pageParts){
   const QC=base.genre==="qcm",KEY=QC?"qcms":"cartes";
-  const dens=QC?2500:base.style==="fiche"?1800:900;let jobs=[];
+  const dens=QC?2500:flColor(base)?1800:900;let jobs=[];
   if(pageParts&&pageParts.length){
     /* cartes : 1 par paragraphe, en parties d’environ 6 000 caractères pour que chaque réponse reste sous le délai ; QCM : parties de 20 000 */
     const PARA=!QC,TAILLE=PARA?6000:20000;
@@ -1767,7 +1769,7 @@ async function flGenAuto(base,pageParts){
     jobs=jobs.map((t,i,a)=>PARA
       ?{texte:t,partie:(i+1)+"/"+a.length,paragraphe:true,nombre:Math.max(4,Math.min(40,nPara(t)||Math.round(t.length/450)))}
       :{texte:t,partie:(i+1)+"/"+a.length,nombre:Math.max(QC?3:4,Math.min(QC?12:30,Math.round(t.replace(/\s+/g," ").length/dens)))});
-  }else jobs=FL_FOCUS.map(f=>({focus:f,nombre:QC?8:base.style==="fiche"?15:22}));
+  }else jobs=FL_FOCUS.map(f=>({focus:f,nombre:QC?8:flColor(base)?15:22}));
   const res=new Array(jobs.length);let fait=0,ko=0,k=0;
   flProgress(`Claude rédige ${QC?"les QCM de ":""}tout l'item en ${jobs.length} parties…`);
   const run=async i=>{
