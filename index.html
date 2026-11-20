@@ -338,6 +338,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 .fl-file input{position:absolute;opacity:0;width:1px;height:1px}
 .fl-fbtn{font-weight:600;color:var(--accent);font-size:.9rem}
 .fl-pages{margin-top:8px;font-size:.85rem}
+.fl-txt{width:100%;margin-top:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface);color:var(--ink);font:inherit;font-size:.88rem;resize:vertical;min-height:90px}
 .fl-pages input{width:5.5em;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--surface);color:var(--ink);font-family:var(--f-mono)}
 .fl-anki{margin-top:10px;padding:12px;border-radius:10px;background:var(--accent-soft)}
 .fl-anki .addrow{margin-top:4px}
@@ -478,6 +479,8 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
         <form id="flForm" class="fl-form">
           <label class="label" for="flKind">Je veux</label>
           <div class="addrow"><select id="flKind" class="fl-sel"><option value="cartes">Des flashcards (Anki)</option><option value="qcm">Faire des QCM niveau EDN (5 propositions)</option></select></div>
+          <label class="label" for="flSrc" id="flSrcL">À partir de</label>
+          <div class="addrow" id="flSrcRow"><select id="flSrc" class="fl-sel"><option value="college">Le collège (chapitre de l'item)</option><option value="fiche">Ma fiche : une carte sur chaque notion, sans exception</option></select></div>
           <label class="label" for="flItem">Item</label>
           <div class="addrow fc-form"><input type="text" id="flItem" list="flItems" placeholder="N° de l'item (ex. 103)" autocomplete="off" required><select id="flNb" aria-label="Nombre de cartes"><option value="auto" selected>Tout l'item (1 carte par paragraphe)</option><option value="20">20 cartes</option><option value="30">30 cartes</option><option value="40">40 cartes</option></select></div>
           <label class="label" for="flStyle" id="flStyleL">Style des cartes</label>
@@ -486,7 +489,8 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
           <label class="label" for="flCol">Collège</label>
           <div class="addrow"><input type="text" id="flCol" list="flCols" placeholder="Ex. Neurologie" autocomplete="off"></div>
           <datalist id="flCols"></datalist>
-          <label class="fl-file" for="flPdf"><input type="file" id="flPdf" accept="application/pdf"><span class="fl-fbtn">Choisir le PDF du collège</span><span id="flPdfName">Recommandé : les cartes viennent alors du chapitre de l'item</span></label>
+          <label class="fl-file" for="flPdf"><input type="file" id="flPdf" accept="application/pdf"><span class="fl-fbtn" id="flFbtn">Choisir le PDF du collège</span><span id="flPdfName">Recommandé : les cartes viennent alors du chapitre de l'item</span></label>
+          <textarea id="flFicheTxt" class="fl-txt" rows="4" placeholder="…ou colle ici le texte de ta fiche (Notes, Word, Notion…)" hidden></textarea>
           <div class="drow fl-pages" id="flPagesRow" hidden><span>Pages du chapitre</span><input type="number" id="flP1" min="1" aria-label="Première page"><span>à</span><input type="number" id="flP2" min="1" aria-label="Dernière page"></div>
           <div class="addrow"><button class="btn primary" id="flGo" type="submit">Générer les cartes</button><button class="btn" type="button" id="flStop" hidden>Arrêter</button></div>
         </form>
@@ -1373,7 +1377,7 @@ function flHtml(s){return esc(String(s==null?"":s)).replace(/\*\*(.+?)\*\*/g,"<b
 function flCourse(n){return state.courses.find(c=>(String(c.item||"").match(/\d+/g)||[]).includes(String(n)))||null}
 const FL_DECK="EDN 2024 - Mes cartes";
 /* un sous-paquet par item : EDN 2024 - Apprentissage::Item 131 - Troubles de la marche… */
-function flDefaultDeck(s){const t=String(s.titre||"").replace(/::/g," ").replace(/\s+/g," ").trim();return "EDN 2024 - Apprentissage::Item "+(s.item||"?")+(t?" - "+t:"")}
+function flDefaultDeck(s){const t=String(s.titre||"").replace(/::/g," ").replace(/\s+/g," ").trim();if(!s.item)return "EDN 2024 - Apprentissage::Mes fiches::"+(t||"Fiche");return "EDN 2024 - Apprentissage::Item "+s.item+(t?" - "+t:"")}
 /* verso au style « Mes cartes » : **rouge gras**, [[vert]], {{bleu}}, _italique_, une ligne par point, « 1) » en gras */
 function flStyled(t){
   const inl=x=>esc(x).replace(/\*\*(.+?)\*\*/g,'<font color="#ff0000"><b>$1</b></font>').replace(/\[\[(.+?)\]\]/g,'<font color="#00aa00">$1</font>').replace(/\{\{(.+?)\}\}/g,'<font color="#0000ff">$1</font>').replace(/(^|[\s(=:,])_(\S(?:.*?\S)?)_(?=$|[\s).,;:])/g,'$1<i>$2</i>');
@@ -1519,8 +1523,24 @@ function flKindUi(){
   const o=$("flNb").options;o[0].text=QC?"Tout l'item (auto)":"Tout l'item (1 carte par paragraphe)";
   [["20","10"],["30","20"],["40","30"]].forEach(([c,q],i)=>{o[i+1].value=QC?q:c;o[i+1].text=(QC?q+" QCM":c+" cartes")});
   $("flGo").textContent=QC?"Générer les QCM":"Générer les cartes";
-  if(!FLS.doc)$("flPdfName").textContent=(QC?"Recommandé : les QCM viennent alors du chapitre de l'item":"Recommandé : les cartes viennent alors du chapitre de l'item");
+  if(!FLS.doc&&!FLS.ficheTxt)$("flPdfName").textContent=(QC?"Recommandé : les QCM viennent alors du chapitre de l'item":"Recommandé : les cartes viennent alors du chapitre de l'item");
+  flSrcUi();
 }
+/* source « ma fiche » : toutes les pages de la fiche, une carte par notion sans exception, puis un contrôle des oublis */
+function flSurFiche(){return $("flKind").value!=="qcm"&&$("flSrc").value==="fiche"}
+function flSrcUi(){
+  const QC=$("flKind").value==="qcm",F=flSurFiche();
+  $("flSrcL").hidden=$("flSrcRow").hidden=QC;
+  $("flItem").required=!F;$("flItem").placeholder=F?"N° de l'item (facultatif)":"N° de l'item (ex. 103)";
+  $("flNb").hidden=F;$("flFicheTxt").hidden=!F;
+  $("flPdf").accept=F?"application/pdf,.txt,.md,text/plain":"application/pdf";
+  $("flFbtn").textContent=F?"Choisir ma fiche (PDF ou .txt)":"Choisir le PDF du collège";
+  if(F){$("flPagesRow").hidden=true}
+  if(!FLS.doc&&!FLS.ficheTxt)$("flPdfName").textContent=F?"Toutes les pages de ta fiche sont utilisées, même si elle fait 6 pages ou plus":(QC?"Recommandé : les QCM viennent alors du chapitre de l'item":"Recommandé : les cartes viennent alors du chapitre de l'item");
+  $("flGo").textContent=QC?"Générer les QCM":F?"Créer les cartes de ma fiche":"Générer les cartes";
+  $("flStatus").textContent=F?"Claude fait une carte pour chaque notion de ta fiche (rien d'ajouté), puis relit la fiche pour rattraper les notions oubliées.":"Sans PDF, Claude s'appuie sur ses connaissances du référentiel. Avec le PDF du collège, il retrouve le chapitre de l'item et n'utilise que lui.";
+}
+$("flSrc").onchange=()=>{try{localStorage.setItem("carnet-fl-src",$("flSrc").value)}catch(e){}flSrcUi()};
 $("flKind").onchange=()=>{try{localStorage.setItem("carnet-fl-kind",$("flKind").value)}catch(e){}flKindUi()};
 function flFront(s,c){return flColor(s)?esc(c.q):flHtml(c.q)}
 /* ---------- révision façon Anki : Espace retourne la carte, puis passe à la suivante ---------- */
@@ -1641,13 +1661,18 @@ async function flPageText(p){
 }
 $("flPdf").onchange=async()=>{
   const f=$("flPdf").files[0];if(!f)return;
-  FLS.doc=null;FLS.pages={};FLS.file=f.name;$("flPagesRow").hidden=true;$("flP1").value=$("flP2").value="";
+  FLS.doc=null;FLS.ficheTxt=null;FLS.pages={};FLS.file=f.name;$("flPagesRow").hidden=true;$("flP1").value=$("flP2").value="";
   $("flPdfName").textContent="Ouverture de "+f.name+"…";
+  if(/\.(txt|md)$/i.test(f.name)||/^text\//.test(f.type)){
+    try{FLS.ficheTxt=await f.text();$("flPdfName").textContent=f.name+" · "+FLS.ficheTxt.split("\n").filter(x=>x.trim()).length+" lignes"}
+    catch(e){FLS.ficheTxt=null;$("flPdfName").textContent="Ce fichier n'a pas pu être lu."}
+    return;
+  }
   try{
     const lib=await flLoadPdfJs();
     FLS.doc=await lib.getDocument({data:await f.arrayBuffer()}).promise;
     $("flPdfName").textContent=f.name+" · "+FLS.doc.numPages+" pages";
-    if(!$("flCol").value.trim())$("flCol").value=f.name.replace(/\.pdf$/i,"").replace(/[_-]+/g," ").replace(/\bcoll[eè]ge\b/i,"").trim().slice(0,60);
+    if(!flSurFiche()&&!$("flCol").value.trim())$("flCol").value=f.name.replace(/\.pdf$/i,"").replace(/[_-]+/g," ").replace(/\bcoll[eè]ge\b/i,"").trim().slice(0,60);
   }catch(e){FLS.doc=null;$("flPdfName").textContent="Ce fichier n'a pas pu être lu. Vérifie que c'est bien un PDF."}
 };
 /* retrouve le chapitre de l'item : une page qui commence par « Item N », jusqu'à la page qui commence par un autre item */
@@ -1697,6 +1722,7 @@ async function flCall(body){
 $("flForm").onsubmit=async e=>{
   e.preventDefault();if(FLS.busy)return;
   if(!CLE){toast("Ouvre d'abord ton carnet avec ta clé.");return}
+  if(flSurFiche())return flSubmitFiche();
   const n=(String($("flItem").value).match(/\d+/)||[])[0];
   if(!n){$("flStatus").textContent="Indique le numéro de l'item, par exemple 103.";return}
   const c=flCourse(n);
@@ -1747,6 +1773,61 @@ $("flForm").onsubmit=async e=>{
     $("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie.";
   }finally{clearTimeout(to);FLS.ctl=null;flBusy(false)}
 };
+async function flSubmitFiche(){
+  const n=(String($("flItem").value).match(/\d+/)||[])[0]||"",c=n?flCourse(n):null;
+  let texte="",nom=FLS.file||"";
+  FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),3600000);
+  flBusy(true,"Lecture de ta fiche…");
+  try{
+    if(FLS.doc){const N=Math.min(FLS.doc.numPages,40),parts=[];for(let p=1;p<=N;p++)parts.push(await flPageText(p));texte=parts.join("\n\n")}
+    else if(FLS.ficheTxt)texte=FLS.ficheTxt;
+    const colle=$("flFicheTxt").value.trim();if(colle){texte=texte?texte+"\n\n"+colle:colle;if(!nom)nom="texte collé"}
+    if(texte.replace(/\s/g,"").length<30){$("flStatus").textContent=FLS.doc?"Ta fiche ne contient presque pas de texte (PDF scanné ou photo ?). Exporte-la en PDF depuis Word/Notes, ou colle son texte dans la case.":"Choisis ta fiche (PDF ou .txt) ou colle son texte dans la case.";return}
+    const titre=(c&&c.name)||nom.replace(/\.(pdf|txt|md)$/i,"").replace(/[_-]+/g," ").trim().slice(0,90)||"Ma fiche";
+    const style=$("flStyle").value;try{localStorage.setItem("carnet-fl-style",style)}catch(e){}
+    const college=$("flCol").value.trim()||(c&&c.subjects[0])||"";
+    const j=await flGenFiche({item:n,titre,college,style,genre:"",source:"fiche"},texte);
+    if(!(j&&j.ok&&j.cartes.length)){$("flStatus").textContent=j&&j.erreur==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":"Les cartes n'ont pas pu être rédigées. Réessaie dans un instant.";return}
+    const s={id:"k"+Date.now().toString(36),item:n,titre,college,src:"d'après ma fiche "+nom,style,fiche:true,d:new Date().toISOString(),cards:j.cartes};
+    s.deck=flDefaultDeck(s);
+    state.flash.unshift(s);if(state.flash.length>40)state.flash.length=40;FLS.cur=s.id;
+    $("flStatus").textContent=`${j.cartes.length} cartes prêtes sur ta fiche (${j.parties} partie${j.parties>1?"s":""} ; contrôle des oublis : ${j.ajoutees?j.ajoutees+" carte"+(j.ajoutees>1?"s":"")+" ajoutée"+(j.ajoutees>1?"s":""):"aucune notion oubliée"}).`+(j.manquantes?` ${j.manquantes} partie${j.manquantes>1?"s n'ont":" n'a"} pas pu être rédigée${j.manquantes>1?"s":""} : relance pour compléter.`:"");
+    save();
+  }catch(err){$("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":err&&err.message==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie."}
+  finally{clearTimeout(to);FLS.ctl=null;flBusy(false)}
+}
+/* fiche : parties d'environ 3 500 caractères coupées entre deux lignes ; pour chaque partie, cartes puis contrôle des notions oubliées */
+async function flGenFiche(base,texte){
+  const T=3500,jobs=[];let bloc="";
+  for(const l of texte.replace(/\r/g,"").split("\n")){
+    if(l.length>T){if(bloc.trim()){jobs.push(bloc);bloc=""}for(let i=0;i<l.length;i+=T)jobs.push(l.slice(i,i+T));continue}
+    if(bloc.length+l.length>T&&bloc.trim()){jobs.push(bloc);bloc=""}
+    bloc+=(bloc?"\n":"")+l;
+  }
+  if(bloc.trim())jobs.push(bloc);
+  const nNot=t=>t.split("\n").filter(x=>x.replace(/[\s•\-–*·]/g,"").length>2).length;
+  const res=new Array(jobs.length);let fait=0,ko=0,k=0,ajout=0;
+  flProgress(`Claude lit ta fiche (${jobs.length} partie${jobs.length>1?"s":""}) et fait une carte par notion…`);
+  const run=async i=>{
+    const corps={texte:jobs[i],partie:(i+1)+"/"+jobs.length,nombre:Math.max(3,Math.min(45,nNot(jobs[i])))};
+    for(let e=0;e<2&&!res[i];e++){
+      try{const j=await flCall(Object.assign({},base,corps));
+        if(j&&j.ok)res[i]=(j.cartes||[]).slice();else if(j&&j.erreur==="cle")throw new Error("cle");else if(j&&j.erreur==="refus")res[i]=[];}
+      catch(err){if(err.name==="AbortError"||err.message==="cle")throw err}
+    }
+    if(!res[i])ko++;
+    else try{
+      const j=await flCall(Object.assign({},base,corps,{controle:true,nombre:5,eviter:res[i].map(c=>String(c.q).replace(/^\s*\d+\.\s*/,"")+" — "+String(c.r).replace(/\s+/g," ").slice(0,120))}));
+      if(j&&j.ok&&Array.isArray(j.cartes)&&j.cartes.length){res[i].push(...j.cartes);ajout+=j.cartes.length}
+    }catch(err){if(err.name==="AbortError")throw err}
+    fait++;flProgress(`Ta fiche : ${fait} partie${fait>1?"s":""} sur ${jobs.length} terminée${fait>1?"s":""} (cartes + contrôle des oublis)…`);
+  };
+  await Promise.all([...Array(Math.min(3,jobs.length))].map(async()=>{while(k<jobs.length){const i=k++;await run(i)}}));
+  const vus=new Set(),cartes=[];
+  for(const r of res){if(!r)continue;for(const c of r){const cle=String(c.q).replace(/^\s*\d+\.\s*/,"").toLowerCase().trim()+"|"+String(c.r).slice(0,40);if(vus.has(cle))continue;vus.add(cle);cartes.push(c)}}
+  if(base.style==="fiche")cartes.forEach((c,i)=>{c.q=String(i+1).padStart(2,"0")+". "+String(c.q).replace(/^\s*\d+\.\s*/,"")});
+  return cartes.length?{ok:true,cartes,parties:jobs.length,manquantes:ko,ajoutees:ajout}:{ok:false,erreur:"generation"};
+}
 /* « Tout l'item » : le chapitre est découpé en parties d'environ 20 000 caractères (sans PDF : 3 groupes d'aspects),
    le nombre de cartes de chaque partie suit sa longueur, 3 parties sont rédigées en même temps */
 const FL_FOCUS=["définition, épidémiologie, rappels anatomiques et physiopathologie utiles","sémiologie clinique, formes cliniques, examen clinique et examens complémentaires","diagnostics différentiels, étiologies, traitement et prise en charge, complications, surveillance, urgences et pièges"];
@@ -1795,7 +1876,7 @@ $("flCards").onchange=e=>{const i=e.target.dataset.flkeep;const s=flCur();if(i==
 $("flCards").onclick=e=>{const b=e.target.closest("[data-flrm]");const s=flCur();if(!b||!s)return;s.cards.splice(+b.dataset.flrm,1);renderFlash();save()};
 $("flDeck").onchange=()=>{const s=flCur();if(!s)return;s.deck=$("flDeck").value.trim()||flDefaultDeck(s);save()};
 try{const st=localStorage.getItem("carnet-fl-style");if(st)$("flStyle").value=st}catch(e){}
-try{const k=localStorage.getItem("carnet-fl-kind");if(k)$("flKind").value=k}catch(e){}flKindUi();
+try{const k=localStorage.getItem("carnet-fl-kind");if(k)$("flKind").value=k;const sr=localStorage.getItem("carnet-fl-src");if(sr)$("flSrc").value=sr}catch(e){}flKindUi();
 $("flDel").onclick=()=>{
   const s=flCur();if(!s)return;
   if(Date.now()-FLS.delArm>4000){FLS.delArm=Date.now();$("flDel").textContent="Confirmer la suppression";setTimeout(()=>{$("flDel").textContent="Supprimer le paquet"},4000);return}
@@ -1804,7 +1885,7 @@ $("flDel").onclick=()=>{
 };
 function flTags(s,c){
   const t=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"_").replace(/^_+|_+$/g,"");
-  return ["EDN","Item_"+s.item,s.college&&t(s.college),c.rang&&"Rang_"+c.rang,c.theme&&t(c.theme)].filter(Boolean);
+  return ["EDN",s.item&&"Item_"+s.item,s.fiche&&"Ma_fiche",s.college&&t(s.college),c.rang&&"Rang_"+c.rang,c.theme&&t(c.theme)].filter(Boolean);
 }
 async function anki(action,params){
   const r=await fetch("http://127.0.0.1:8765",{method:"POST",body:JSON.stringify({action,version:6,params:params||{}})});
