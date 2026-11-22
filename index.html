@@ -199,6 +199,10 @@ table.lcatab{min-width:480px}
 .revb{margin:4px 0 6px;width:100%;border-color:var(--todo);color:var(--todo)}
 tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-family:var(--f-body)}
 .errp{width:min(620px,100%)}
+.ecom{color:#1f3b8f;font-style:italic}
+.edn-help{margin-top:12px;font-size:.84rem}
+.edn-help ol{padding-left:18px;margin:6px 0}
+.edn-help code{font-family:var(--f-mono);font-size:.78rem;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:1px 5px;word-break:break-all}
 .errhide-row{display:flex;align-items:center;gap:10px;margin:6px 0 2px}
 .errlist .errhide-row{margin:-2px 0 8px}
 .ecard{border:1px solid var(--line);border-left:4px solid var(--todo);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
@@ -636,6 +640,14 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
     <div class="drow" id="errBar"><span class="label" id="errPos"></span><span style="flex:1"></span><button class="btn ghost" id="errHidBtn" type="button" hidden>Voir les masquées</button><button class="btn" id="errMode" type="button">Tout afficher</button><button class="btn primary" id="errPdf" type="button">Imprimer (PDF)</button></div>
     <div id="errBody"></div>
     <div class="drow" id="errNav" style="justify-content:space-between"><button class="btn" id="errPrev" type="button">← Précédente</button><button class="btn primary" id="errShow" type="button">Voir la correction</button><button class="btn" id="errNext" type="button">Suivante →</button></div>
+    <details class="fl-help edn-help" id="ednHelp"><summary>Choisir tes erreurs pendant tes QCM sur EDN (panneau à installer une fois)</summary>
+      <p>Sur EDN.fr, un petit onglet « Carnet d'erreurs » te demande après chaque réponse si tu la mets dans ton carnet, avec un commentaire. Dès que tu l'utilises, la mise à jour automatique n'ajoute plus tes erreurs d'office : seules celles que tu choisis arrivent ici.</p>
+      <ol>
+        <li><b>Safari</b> : installe l'app gratuite <b>Userscripts</b> (Mac App Store), puis active-la dans Safari → Réglages → Extensions et autorise-la sur edn.fr. <b>Chrome</b> : installe l'extension <b>Tampermonkey</b>.</li>
+        <li>Ouvre <a href="edn-carnet.user.js" target="_blank" rel="noopener">le script du panneau</a> et choisis <b>Installer</b> dans Userscripts ou Tampermonkey.</li>
+        <li>Va sur EDN.fr : au premier lancement, colle ta clé de carnet <span id="ednKey"></span>.</li>
+      </ol>
+    </details>
   </div>
 </div>
 <div class="picker" id="lcaDlg" hidden>
@@ -1099,8 +1111,8 @@ $("cal").addEventListener("drop",e=>{const d=e.target.closest(".day");if(!d)retu
 
 function ecard(e,show){const it=(e.it||[]).map(n=>"item "+n).join(", ");
   if(e.meta)return `<div class="ecard"><div class="meta">${esc(e.meta)}</div><div class="q">${esc(e.q)}</div>${show?`${e.mine?`<div><div class="k">Ce que tu as fait</div><div class="mine">${esc(e.mine)}</div></div>`:""}${e.good?`<div><div class="k">Bonne réponse</div><div class="good">${esc(e.good)}</div></div>`:""}${e.why?`<div><div class="k">À retenir</div><div>${esc(e.why)}</div></div>`:""}`:'<div class="saved">Essaie de retrouver la bonne réponse, puis affiche la correction.</div>'}</div>`;
-  return `<div class="ecard"><div class="meta">${esc(it)} · ${fmt(e.d)} · note ${e.g}/${e.mg}</div><div class="q">${esc(e.q)}</div>
-  ${show?`<div><div class="k">Ce que tu as fait</div><div class="mine">${esc(e.mine)}</div></div><div><div class="k">Bonnes réponses</div><div class="good">${esc(e.good)}</div></div><div><div class="k">À retenir</div><div>${esc(e.why)}</div></div><a href="${esc(e.url)}" target="_blank" rel="noopener" class="saved">Voir la question et la correction sur EDN</a>`:'<div class="saved">Essaie de retrouver la bonne réponse, puis affiche la correction.</div>'}</div>`}
+  return `<div class="ecard"><div class="meta">${esc(it)} · ${fmt(e.d)}${e.g!=null?` · note ${e.g}/${e.mg}`:""}${e.com?" · 💬":""}</div><div class="q">${esc(e.q)}</div>
+  ${show?`<div><div class="k">Ce que tu as fait</div><div class="mine">${esc(e.mine)}</div></div><div><div class="k">Bonnes réponses</div><div class="good">${esc(e.good)}</div></div>${e.why?`<div><div class="k">À retenir</div><div>${esc(e.why)}</div></div>`:""}${e.com?`<div><div class="k">Mon commentaire</div><div class="ecom">${esc(e.com)}</div></div>`:""}<a href="${esc(e.url)}" target="_blank" rel="noopener" class="saved">Voir la question et la correction sur EDN</a>`:'<div class="saved">Essaie de retrouver la bonne réponse, puis affiche la correction.</div>'}</div>`}
 function pdfTxt(s){return String(s||"").replace(/β/g,"bêta").replace(/[→]/g,"->").replace(/[≤]/g,"<=").replace(/[≥]/g,">=").replace(/[µμ]/g,"u").replace(/[  ]/g," ")}
 async function errPdf(){
   const r=RV;if(!r||!r.list.length)return;
@@ -1113,15 +1125,18 @@ async function errPdf(){
   r.list.forEach((e,i)=>{
     need(28);doc.setDrawColor(213,219,231);doc.line(M,y-2,W-M,y-2);y+=2;
     para((i+1)+". "+e.q,11,"bold",[22,33,61],1);
-    para(e.meta||((e.it||[]).map(n=>"item "+n).join(", ")+" · "+fmt(e.d)+" · note "+e.g+"/"+e.mg),8.5,"normal",[93,103,130],2);
+    para(e.meta||((e.it||[]).map(n=>"item "+n).join(", ")+" · "+fmt(e.d)+(e.g!=null?" · note "+e.g+"/"+e.mg:"")),8.5,"normal",[93,103,130],2);
     if(e.mine)para("Ce que j'ai fait : "+e.mine,9.5,"normal",[200,55,45],1.5);
     if(e.good)para("Bonnes réponses : "+e.good,9.5,"normal",[31,138,91],1.5);
-    if(e.why)para("À retenir : "+e.why,9.5,"normal",[22,33,61],5);else y+=3.5;
+    if(e.why)para("À retenir : "+e.why,9.5,"normal",[22,33,61],e.com?1.5:5);
+    if(e.com)para("Mon commentaire : "+e.com,9.5,"italic",[31,59,143],5);
+    if(!e.why&&!e.com)y+=3.5;
   });
   const blob=doc.output("blob");const name=("erreurs-"+r.title.replace(/^.*·\s*/,"")).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"-").replace(/-+/g,"-").toLowerCase()+".pdf";
   telecharger(name,blob);
 }
-function openErrs(title,list){RV={src:list,list,i:0,show:false,all:false,title,voirMasquees:false};$("errTitle").textContent=title;renderErrs();$("errDlg").hidden=false}
+function ednKeyHtml(){const el=$("ednKey");if(!el)return;el.innerHTML=CLE?`: <code>${esc(CLE)}</code> <button class="btn ghost" type="button" id="ednKeyCp">Copier</button>`:"(celle de ton lien de carnet)";const b=$("ednKeyCp");if(b)b.onclick=()=>{try{navigator.clipboard.writeText(CLE);toast("Clé copiée")}catch(e){}}}
+function openErrs(title,list){ednKeyHtml();RV={src:list,list,i:0,show:false,all:false,title,voirMasquees:false};$("errTitle").textContent=title;renderErrs();$("errDlg").hidden=false}
 function errBtn(e,i){const h=errHid(e);return `<div class="errhide-row"><button class="btn${h?" primary":""} errhide" type="button" data-errhide="${i}">${h?"La remettre dans mes révisions":"Je la sais : ne plus me la montrer"}</button>${h?'<span class="saved">Masquée</span>':""}</div>`}
 function renderErrs(){const r=RV;if(!r)return;
   const src=r.src||r.list,nHid=src.filter(errHid).length;
