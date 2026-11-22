@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Carnet de révisions — erreurs EDN
 // @namespace    https://margauxbouriez-a11y.github.io/auroremedecine/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Sur EDN.fr : après chaque réponse, te demande si tu la mets dans ton carnet d'erreurs, avec un commentaire.
 // @match        https://www.edn.fr/*
 // @match        https://edn.fr/*
@@ -113,11 +113,69 @@
     };
   }
 
+  /* ---------- lecture de la question affichée (mode révisions/ancrage, où l'API ne donne pas les réponses) ---------- */
+  const hash = (t) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+  const feuilles = (racineEl, test) => [...racineEl.querySelectorAll('h1,h2,h3,h4,h5,div,span,p,strong,b,label')].filter(e => e.offsetParent !== null && test((e.textContent || '').trim()) && ![...e.children].some(c => test((c.textContent || '').trim())));
+  function teinte(el) {
+    const m = (getComputedStyle(el).color || '').match(/\d+/g); if (!m) return '';
+    const [r, g, b] = m.map(Number);
+    if (g > r + 40 && g >= b) return 'vert';
+    if (r > g + 40 && r > b) return 'rouge';
+    return '';
+  }
+  function coche(el) {
+    let row = el; for (let i = 0; i < 5 && row; i++, row = row.parentElement) {
+      const c = row.querySelector('input[type=checkbox],input[type=radio],[role=checkbox],[aria-checked]');
+      if (c) { if (c.checked != null && c.tagName === 'INPUT') return c.checked; const a = c.getAttribute('aria-checked'); if (a != null) return a === 'true'; return /checked|selected|active/i.test(c.className || ''); }
+    }
+    return null;
+  }
+  function lireEcran() {
+    const titre = feuilles(document.body, t => /^Question\s+\d+$/.test(t))[0];
+    const corr = feuilles(document.body, t => t === 'Correction')[0];
+    if (!titre || !corr) return null;
+    let carte = titre; while (carte.parentElement && !carte.contains(corr)) carte = carte.parentElement;
+    const lignes = carte.innerText.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const sc = carte.innerText.match(/(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)\s*pts/i);
+    const g = sc ? Number(sc[1].replace(',', '.')) : null, mg = sc ? Number(sc[2].replace(',', '.')) : null;
+    const iQ = lignes.findIndex(l => /^Question\s+\d+$/.test(l)), iC = lignes.indexOf('Correction');
+    const props = [];
+    for (let i = iQ + 1; i < iC; i++) {
+      let m = lignes[i].match(/^([A-H])\.\s*(.*)$/);
+      if (!m) continue;
+      let t = m[2]; if (!t && lignes[i + 1] && i + 1 < iC) t = lignes[++i];
+      t = t.replace(/\s*\d+(?:,\d+)?\s*%$/, '').trim();
+      const el = feuilles(carte, x => x.indexOf(t.slice(0, 30)) >= 0 && x.length < t.length + 40)[0];
+      props.push({ l: m[1], t, teinte: el ? teinte(el) : '', c: el ? coche(el) : null });
+    }
+    if (!props.length) return null;
+    const iP = lignes.findIndex((l, i) => i > iQ && /^[A-H]\.\s*/.test(l));
+    const enonce = lignes.slice(iQ + 1, iP).filter(l => !/répondent juste|\d\s*\/\s*\d+(?:[.,]\d+)?\s*pts|^(QRM|QRU|QROC|QRP|KFP|[A-Z])$/.test(l)).join(' ');
+    const fin = lignes.findIndex((l, i) => i > iC && /Ajouter une note|Je connaissais|Je me rappelais|Je ne savais pas|Ne plus revoir|Supprimer de l/.test(l));
+    const why = lignes.slice(iC + 1, fin > 0 ? fin : undefined).filter(l => !/^Fiche de cours$/.test(l)).join(' ');
+    const itm = (document.body.innerText.match(/Item\s+(\d{1,3})\s*:/) || [])[1];
+    const justes = props.filter(p => p.teinte === 'vert');
+    const tort = props.filter(p => p.teinte === 'rouge').map(p => 'coché à tort : ' + p.l + '. ' + p.t);
+    const oubli = props.filter(p => p.teinte === 'vert' && p.c === false).map(p => 'oublié : ' + p.l + '. ' + p.t);
+    const faux = g != null && mg != null ? g < mg : tort.length > 0;
+    const cle = 'ecran-' + hash(enonce + '|' + props.map(p => p.t).join('|'));
+    return {
+      cle: cle + '|' + 'https://www.edn.fr/app/trainings/training/revisions', faux, vu: cle,
+      erreur: {
+        qid: cle, url: 'https://www.edn.fr/app/trainings/training/revisions', d: new Date().toISOString().slice(0, 10), g, mg,
+        it: itm ? [Number(itm)] : [], q: enonce.slice(0, 700),
+        mine: tort.concat(oubli).join(' ; ') || (faux ? 'Réponse incomplète.' : 'Bonne réponse.'),
+        good: justes.map(p => p.l + '. ' + p.t).join(' ; '), why: why.slice(0, 1500)
+      }
+    };
+  }
+
   /* ---------- état ---------- */
   const CFG = { cle: '', aussiJustes: true };
   let decides = new Set();      /* déjà au carnet ou refusées (n8n) + décisions locales */
   const vus = new Set();        /* déjà proposées dans cette page */
   let file = [];                /* réponses en attente de ta décision */
+  let ecranActif = false;
   let sid = null, ouvert = false, msg = '', occupe = false, reglages = false, attente = '', brouillon = '';
 
   /* numéro de série : dans l'adresse si possible (identifiant EDN de 26 caractères), sinon la dernière série ouverte, demandée à EDN */
@@ -153,7 +211,20 @@
     return false;
   }
 
+  function sonderEcran() {
+    if (!CFG.cle) return;
+    let r = null; try { r = lireEcran(); } catch (e) { r = null; }
+    if (!r) return;
+    if (!ecranActif) { ecranActif = true; diag = 'question lue à l\'écran'; attente = ''; }
+    if (vus.has(r.vu) || decides.has(r.cle)) return;
+    vus.add(r.vu);
+    if (!r.faux && !CFG.aussiJustes) return;
+    file.push(r); ouvert = true; if (file.length === 1) msg = '';
+    dessiner();
+  }
+
   async function sonder() {
+    if (ecranActif) return; /* la lecture à l'écran suffit : pas d'API */
     const s = await sessionDeLaPage();
     if (s !== sid) { sid = s; attente = s ? 'En attente de ta première réponse corrigée…' : ''; if (!racine.querySelector('#com')) dessiner(); }
     if (!sid || !CFG.cle || document.hidden) return;
@@ -245,7 +316,7 @@
         <div><div class="k">Ton commentaire (facultatif)</div><textarea id="com" placeholder="Ex. piège classique : seuil à 1,5 g/L, pas 1 g/L">${esc(brouillon)}</textarea></div>
         <div class="row"><button class="b p" id="oui" ${occupe ? 'disabled' : ''}>Ajouter au carnet</button><button class="b" id="non" ${occupe ? 'disabled' : ''}>Non</button><button class="b" id="tard" ${occupe ? 'disabled' : ''}>Plus tard</button></div>`;
     } else {
-      corps = `<div class="meta">${esc(attente || (sid ? 'Toutes tes réponses de cette série sont traitées. Réponds à la question suivante : je te la proposerai dès qu\'elle est corrigée.' : 'Ouvre une série de questions EDN : je te demanderai après chaque réponse si tu veux la garder dans ton carnet.'))}</div>
+      corps = `<div class="meta">${esc(ecranActif ? 'Réponds à la question : je te la proposerai dès que la correction s\'affiche.' : attente || (sid ? 'Toutes tes réponses de cette série sont traitées. Réponds à la question suivante : je te la proposerai dès qu\'elle est corrigée.' : 'Ouvre une série de questions EDN : je te demanderai après chaque réponse si tu veux la garder dans ton carnet.'))}</div>
         <div class="meta" style="font-size:11px;opacity:.75">Diagnostic : ${esc(diag || '…')}${sid ? ' · série ' + esc(sid.slice(0, 6)) + '…' : ''} · ${esc(location.pathname.slice(0, 60))}</div>`;
     }
     racine.innerHTML = `<style>${CSS}</style><div class="card" role="dialog" aria-label="Carnet d'erreurs">
@@ -270,6 +341,7 @@
     sid = await sessionDeLaPage(); if (!CFG.cle) ouvert = true;
     dessiner(); sonder();
     setInterval(sonder, POLL);
+    setInterval(sonderEcran, 1500);
     let derniere = location.href;
     setInterval(() => { if (location.href !== derniere) { derniere = location.href; sonder(); } }, 1000);
   })();
