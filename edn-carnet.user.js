@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Carnet de révisions — erreurs EDN
 // @namespace    https://margauxbouriez-a11y.github.io/auroremedecine/
-// @version      1.0.0
+// @version      1.1.0
 // @description  Sur EDN.fr : après chaque réponse, te demande si tu la mets dans ton carnet d'erreurs, avec un commentaire.
 // @match        https://www.edn.fr/*
 // @match        https://edn.fr/*
@@ -120,10 +120,31 @@
   let file = [];                /* réponses en attente de ta décision */
   let sid = null, ouvert = false, msg = '', occupe = false, reglages = false, attente = '', brouillon = '';
 
-  function sessionDeLaPage() {
-    const p = location.pathname;
-    const m = p.match(/\/training\/(?:correction\/)?([0-9A-Za-z]{20,32})/) || (/training|session|exam/i.test(p) && p.match(/\/([0-9A-HJKMNP-TV-Z]{26})(?:\/|$)/i));
-    return m ? m[1] : null;
+  /* numéro de série : dans l'adresse si possible (identifiant EDN de 26 caractères), sinon la dernière série ouverte, demandée à EDN */
+  function sessionDeLAdresse() {
+    const m = (location.pathname + location.search + location.hash).match(/(?:^|[\/=#?&])([0-9A-HJKMNP-TV-Z]{26})(?=$|[\/?&#])/i);
+    return m ? m[1].toUpperCase() : null;
+  }
+  let derniereSerie = null, derniereSerieA = 0, diag = '';
+  async function serieEnCours() {
+    if (Date.now() - derniereSerieA < 30000) return derniereSerie;
+    derniereSerieA = Date.now();
+    try {
+      const j = await ednGet('training_sessions/me/list_my_training_sessions?perPage=10&partial=true');
+      const L = j['hydra:member'] || j.member || [];
+      const quand = (x) => Date.parse(x.updatedAt || x.lastAnsweredAt || x.startedAt || x.createdAt || 0) || 0;
+      const ouvertes = L.filter(x => x && x.id && x.status !== 'CLOSED');
+      const choix = (ouvertes.length ? ouvertes : L.filter(x => x && x.id)).sort((a, b) => quand(b) - quand(a))[0];
+      derniereSerie = choix ? String(choix.id) : null;
+      diag = choix ? 'série EDN la plus récente (' + (choix.status || '?') + ')' : 'aucune série trouvée chez EDN';
+    } catch (e) { derniereSerie = null; diag = e.message === 'SESSION' ? 'pas connecté à EDN' : 'EDN : ' + e.message; }
+    return derniereSerie;
+  }
+  async function sessionDeLaPage() {
+    const a = sessionDeLAdresse();
+    if (a) { diag = 'série lue dans l\'adresse'; return a; }
+    if (!/\/app\//.test(location.pathname)) { diag = 'page sans série'; return null; }
+    return serieEnCours();
   }
 
   async function chargerDecisions() {
@@ -133,12 +154,13 @@
   }
 
   async function sonder() {
-    const s = sessionDeLaPage();
+    const s = await sessionDeLaPage();
     if (s !== sid) { sid = s; attente = s ? 'En attente de ta première réponse corrigée…' : ''; if (!racine.querySelector('#com')) dessiner(); }
     if (!sid || !CFG.cle || document.hidden) return;
     try {
       const ans = await tout('training_sessions/' + sid + '/list_my_training_session_question_answers?perPage=50&partial=true');
       let nouveaux = 0;
+      diag = diag.replace(/ · \d+ réponse.*$/, '') + ' · ' + ans.length + ' réponse' + (ans.length > 1 ? 's' : '') + ' lue' + (ans.length > 1 ? 's' : '');
       for (const a of ans) {
         const r = lire(a, sid);
         if (!r || vus.has(r.cle) || decides.has(r.cle)) continue;
@@ -150,7 +172,8 @@
       if (nouveaux) { if (!ouvert) ouvert = true; if (file.length === nouveaux) msg = ''; dessiner(); }
       else if (avant) dessiner();
     } catch (e) {
-      if (e.message === 'SESSION') { const t = 'Connecte-toi à EDN pour que le panneau voie tes réponses.'; if (attente !== t) { attente = t; dessiner(); } }
+      const t = e.message === 'SESSION' ? 'Connecte-toi à EDN pour que le panneau voie tes réponses.' : 'EDN ne donne pas les réponses de cette série (' + e.message + ').';
+      if (attente !== t) { attente = t; dessiner(); }
     }
   }
 
@@ -203,7 +226,6 @@
   function dessiner() {
     const n = file.length;
     if (!ouvert) {
-      if (!sid && !n) { racine.innerHTML = ''; return; }
       racine.innerHTML = `<style>${CSS}</style><button class="tab" id="ouvrir" title="Carnet d'erreurs">Carnet d'erreurs${n ? ` <b>${n}</b>` : ''}</button>`;
       racine.getElementById('ouvrir').onclick = () => { ouvert = true; dessiner(); };
       return;
@@ -223,7 +245,8 @@
         <div><div class="k">Ton commentaire (facultatif)</div><textarea id="com" placeholder="Ex. piège classique : seuil à 1,5 g/L, pas 1 g/L">${esc(brouillon)}</textarea></div>
         <div class="row"><button class="b p" id="oui" ${occupe ? 'disabled' : ''}>Ajouter au carnet</button><button class="b" id="non" ${occupe ? 'disabled' : ''}>Non</button><button class="b" id="tard" ${occupe ? 'disabled' : ''}>Plus tard</button></div>`;
     } else {
-      corps = `<div class="meta">${esc(attente || (sid ? 'Toutes tes réponses de cette série sont traitées.' : 'Ouvre une série de questions EDN : je te demanderai après chaque réponse si tu veux la garder dans ton carnet.'))}</div>`;
+      corps = `<div class="meta">${esc(attente || (sid ? 'Toutes tes réponses de cette série sont traitées. Réponds à la question suivante : je te la proposerai dès qu\'elle est corrigée.' : 'Ouvre une série de questions EDN : je te demanderai après chaque réponse si tu veux la garder dans ton carnet.'))}</div>
+        <div class="meta" style="font-size:11px;opacity:.75">Diagnostic : ${esc(diag || '…')}${sid ? ' · série ' + esc(sid.slice(0, 6)) + '…' : ''} · ${esc(location.pathname.slice(0, 60))}</div>`;
     }
     racine.innerHTML = `<style>${CSS}</style><div class="card" role="dialog" aria-label="Carnet d'erreurs">
       <div class="hd"><h3>Carnet d'erreurs</h3>${CFG.cle && !reglages ? '<button class="lien" id="regl">Réglages</button>' : ''}<button class="x" id="fermer" title="Réduire">–</button></div>
@@ -244,7 +267,7 @@
   (async function demarrer() {
     CFG.cle = await getV('cle', ''); CFG.aussiJustes = await getV('aussiJustes', true);
     if (CFG.cle) await chargerDecisions();
-    sid = sessionDeLaPage(); if (sid && !CFG.cle) ouvert = true;
+    sid = await sessionDeLaPage(); if (!CFG.cle) ouvert = true;
     dessiner(); sonder();
     setInterval(sonder, POLL);
     let derniere = location.href;
