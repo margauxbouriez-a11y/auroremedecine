@@ -199,6 +199,8 @@ table.lcatab{min-width:480px}
 .revb{margin:4px 0 6px;width:100%;border-color:var(--todo);color:var(--todo)}
 tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-family:var(--f-body)}
 .errp{width:min(620px,100%)}
+.errhide-row{display:flex;align-items:center;gap:10px;margin:6px 0 2px}
+.errlist .errhide-row{margin:-2px 0 8px}
 .ecard{border:1px solid var(--line);border-left:4px solid var(--todo);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
 .ecard .q{font-weight:600}
 .ecard .meta{font-size:.76rem;color:var(--muted)}
@@ -631,7 +633,7 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
 <div class="picker" id="errDlg" hidden>
   <div class="panel dayp errp">
     <div class="lhead"><h2 id="errTitle">Carnet d’erreurs</h2><button class="btn ghost" id="errClose" type="button">Fermer</button></div>
-    <div class="drow" id="errBar"><span class="label" id="errPos"></span><span style="flex:1"></span><button class="btn" id="errMode" type="button">Tout afficher</button><button class="btn primary" id="errPdf" type="button">Imprimer (PDF)</button></div>
+    <div class="drow" id="errBar"><span class="label" id="errPos"></span><span style="flex:1"></span><button class="btn ghost" id="errHidBtn" type="button" hidden>Voir les masquées</button><button class="btn" id="errMode" type="button">Tout afficher</button><button class="btn primary" id="errPdf" type="button">Imprimer (PDF)</button></div>
     <div id="errBody"></div>
     <div class="drow" id="errNav" style="justify-content:space-between"><button class="btn" id="errPrev" type="button">← Précédente</button><button class="btn primary" id="errShow" type="button">Voir la correction</button><button class="btn" id="errNext" type="button">Suivante →</button></div>
   </div>
@@ -697,7 +699,11 @@ function hypoOf(c){
 }
 const hpct=h=>h&&h.c+h.i>0?Math.round(h.c/(h.c+h.i)*100):null;
 function hypoView(c){return hypoOf(c)}
-function errsOf(c){const ns=new Set(String(c.item||"").match(/\d+/g)||[]);const edn=E&&E.errors?E.errors:[];const own=(state.flash||[]).filter(x=>x.kind==="qcm").flatMap(x=>x.errs||[]);return edn.concat(own).filter(e=>(e.it||[]).some(n=>ns.has(String(n))))}
+/* erreurs masquées (« ne plus me la montrer ») : gardées, mais exclues des compteurs et des relectures */
+function errKey(e){return e.qid!=null?"q|"+e.qid+"|"+(e.url||""):"t|"+String(e.q||"").slice(0,120)+"|"+(e.d||"")}
+function errHid(e){return !!(state.errHide&&state.errHide[errKey(e)])}
+function errsOf(c){return errsAll(c).filter(e=>!errHid(e))}
+function errsAll(c){const ns=new Set(String(c.item||"").match(/\d+/g)||[]);const edn=E&&E.errors?E.errors:[];const own=(state.flash||[]).filter(x=>x.kind==="qcm").flatMap(x=>x.errs||[]);return edn.concat(own).filter(e=>(e.it||[]).some(n=>ns.has(String(n))))}
 let view=new Date(); view.setDate(1);
 try{filter=localStorage.getItem("carnet-filtre")||"all"}catch(e){}
 
@@ -779,7 +785,7 @@ function save(){
   if(!ref){$("saved").textContent=" · enregistré sur cet appareil";return}
   clearTimeout(saveTimer);$("saved").textContent=" · enregistrement…";
   saveTimer=setTimeout(async()=>{
-    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,flash:state.flash,imagerie:state.imagerie||{},updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
+    try{await ref.set({courses:state.courses,sessions:state.sessions,lca:state.lca,events:state.events,fiches:state.fiches,flash:state.flash,imagerie:state.imagerie||{},errHide:state.errHide||{},updatedAt:new Date().toISOString()});if(!$("saved").textContent.includes("autre appareil"))$("saved").textContent=" · enregistré"}
     catch(e){$("saved").textContent=" · échec de l'enregistrement, réessaie"}
     finally{saveTimer=null}
   },800);
@@ -895,7 +901,7 @@ function chip(x,m,showLast){
   return `<button class="chip${armed===x.c.id?" sel":""}${off?" offr":""}"${off?` title="${esc(m)} n'est pas rédactrice de cet item"`:""} draggable="true" data-cid="${x.c.id}" style="--c:${colorOf(m||x.c.subjects[0])}">
     <span class="it">${x.c.item?esc(x.c.item):"—"}</span>
     <span class="nm"><b>${esc(x.c.name)}</b>${x.c.redac?`<em style="display:block">Rédacteurs : ${esc(x.c.redac)}</em>`:""}<em>${showLast&&x.last?`révisé le ${fmt(x.last)} `:""}${others.length?`<span class="link" title="Item lié">aussi en ${esc(others.join(", "))}</span> `:""}${x.next?(x.next<todayIso?`<span class="late-t">en retard (${fmt(x.next)})</span>`:"prévu le "+fmt(x.next)):""}</em></span>
-    ${scoreBadge(x,m)}${mode==="qcm"&&errsOf(x.c).length?`<span class="errb" role="button" tabindex="0" data-errs="${x.c.id}" title="Ouvrir le carnet d’erreurs">${errsOf(x.c).length} erreur${errsOf(x.c).length>1?"s":""}</span>`:""}${x.views?`<span class="count ${x.st}" title="Nombre de fois vu">×${x.views}</span>`:""}</button>`;
+    ${scoreBadge(x,m)}${mode==="qcm"&&errsAll(x.c).length?`<span class="errb" role="button" tabindex="0" data-errs="${x.c.id}" title="Ouvrir le carnet d’erreurs">${errsOf(x.c).length?errsOf(x.c).length+" erreur"+(errsOf(x.c).length>1?"s":""):"erreurs masquées"}</span>`:""}${x.views?`<span class="count ${x.st}" title="Nombre de fois vu">×${x.views}</span>`:""}</button>`;
 }
 function renderCal(){
   $("month").textContent=view.toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
@@ -926,11 +932,11 @@ function row(x,m){
     <td><input type="text" id="n-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="name" value="${esc(x.c.name)}" aria-label="Intitulé"><div class="redac"><b>Rédacteurs :</b><input type="text" id="r-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="redac" value="${esc(x.c.redac||"")}" placeholder="collèges rédacteurs (LiSA)" aria-label="Collèges rédacteurs"></div></td>
     <td><input type="text" id="s-${m?esc(m.replace(/\W/g,"_"))+"-":""}${x.c.id}" data-f="subjects" value="${esc(x.c.subjects.join(", "))}" aria-label="Matières" title="${others.length?"Lié à : "+esc(others.join(", ")):""}"></td>
     <td><span class="stepper"><button data-step="-1" aria-label="Retirer une révision">−</button><b class="num">${x.views}</b><button data-step="1" aria-label="Ajouter une révision">+</button></span></td>
-    <td class="num">${mode==="qcm"?qcmCell(x,m)+(errsOf(x.c).length?`<div><button class="errb" data-errs="${x.c.id}">Carnet d’erreurs · ${errsOf(x.c).length}</button></div>`:""):fmt(x.last)}</td><td class="num">${x.next&&x.next<todayIso?`<span class="late-t">en retard · ${fmt(x.next)}</span>`:fmt(x.next)}</td>
+    <td class="num">${mode==="qcm"?qcmCell(x,m)+(errsAll(x.c).length?`<div><button class="errb" data-errs="${x.c.id}">Carnet d’erreurs · ${errsOf(x.c).length}</button></div>`:""):fmt(x.last)}</td><td class="num">${x.next&&x.next<todayIso?`<span class="late-t">en retard · ${fmt(x.next)}</span>`:fmt(x.next)}</td>
     <td>${{done:'<span class="pill ok">Fait</span>',mid:'<span class="pill mid">En cours</span>',todo:'<span class="pill todo">À faire</span>'}[x.st]}</td>
     <td><button class="del" data-delc="${x.c.id}" aria-label="Supprimer l'item">×</button></td></tr>`;
 }
-function subjErrs(m){const seen=new Set(),out=[];for(const c of state.courses.filter(c=>c.subjects.includes(m)))for(const e of errsOf(c)){const k=e.qid+e.d+e.url;if(!seen.has(k)){seen.add(k);out.push(e)}}return out.sort((a,b)=>b.d.localeCompare(a.d))}
+function subjErrs(m,tout){const seen=new Set(),out=[];for(const c of state.courses.filter(c=>c.subjects.includes(m)))for(const e of (tout?errsAll(c):errsOf(c))){const k=e.qid+e.d+e.url;if(!seen.has(k)){seen.add(k);out.push(e)}}return out.sort((a,b)=>b.d.localeCompare(a.d))}
 function hypoBlockTxt(m){if(!E)return"";let a=0,t=0;for(const c of state.courses.filter(c=>c.subjects.includes(m))){const h=hypoOf(c);if(h){a+=h.a;t+=h.t}}const ne=subjErrs(m).length;return (t?` · EDN ${a}/${t} questions`:"")+(ne?` · ${ne} erreur${ne>1?"s":""}`:"")}
 function renderLCA(){
   const F=(LCA&&LCA.fiches)||[],fd=F.filter(f=>f.done).length;
@@ -977,9 +983,9 @@ document.addEventListener("click",e=>{
   if(tb){mode=tb.dataset.mode;armed=null;try{localStorage.setItem("carnet-mode",mode)}catch(e){}render();return}
   if(t.dataset.score){e.preventDefault();openScore(t.dataset.score);return}
   const eb2=t.closest("[data-errs]");
-  if(eb2){e.preventDefault();e.stopPropagation();const c=state.courses.find(c=>c.id===eb2.dataset.errs);if(c)openErrs("Carnet d’erreurs · "+label(c),errsOf(c).sort((a,b)=>b.d.localeCompare(a.d)));return}
+  if(eb2){e.preventDefault();e.stopPropagation();const c=state.courses.find(c=>c.id===eb2.dataset.errs);if(c)openErrs("Carnet d’erreurs · "+label(c),errsAll(c).sort((a,b)=>b.d.localeCompare(a.d)));return}
   const rb=t.closest("[data-review]");
-  if(rb){e.stopPropagation();const m=rb.dataset.review;openErrs("Relire les erreurs · "+m,subjErrs(m));return}
+  if(rb){e.stopPropagation();const m=rb.dataset.review;openErrs("Relire les erreurs · "+m,subjErrs(m,true));return}
   const gp=t.closest("[data-grp]");
   if(gp&&!t.closest("input")&&gp.dataset.grp.startsWith("SEM:")){const m=gp.dataset.grp;openG.has(m)?openG.delete(m):openG.add(m);try{localStorage.setItem("carnet-ouverts",JSON.stringify([...openG]))}catch(e){}render();return}
   if(gp&&!t.closest("input")){const m=gp.dataset.grp;if(isOpen(m)){openG.delete(m);if(filter===m)filter="all"}else openG.add(m);try{localStorage.setItem("carnet-ouverts",JSON.stringify([...openG]))}catch(e){}render();return}
@@ -1115,12 +1121,18 @@ async function errPdf(){
   const blob=doc.output("blob");const name=("erreurs-"+r.title.replace(/^.*·\s*/,"")).normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w-]+/g,"-").replace(/-+/g,"-").toLowerCase()+".pdf";
   telecharger(name,blob);
 }
-function openErrs(title,list){RV={list,i:0,show:false,all:false,title};$("errTitle").textContent=title;renderErrs();$("errDlg").hidden=false}
-function renderErrs(){const r=RV;if(!r)return;const n=r.list.length;
-  if(!n){$("errBody").innerHTML='<div class="empty">Aucune erreur enregistrée.</div>';$("errNav").hidden=true;$("errBar").hidden=true;return}
+function openErrs(title,list){RV={src:list,list,i:0,show:false,all:false,title,voirMasquees:false};$("errTitle").textContent=title;renderErrs();$("errDlg").hidden=false}
+function errBtn(e,i){const h=errHid(e);return `<div class="errhide-row"><button class="btn${h?" primary":""} errhide" type="button" data-errhide="${i}">${h?"La remettre dans mes révisions":"Je la sais : ne plus me la montrer"}</button>${h?'<span class="saved">Masquée</span>':""}</div>`}
+function renderErrs(){const r=RV;if(!r)return;
+  const src=r.src||r.list,nHid=src.filter(errHid).length;
+  r.list=r.voirMasquees?src.slice():src.filter(e=>!errHid(e));if(r.i>=r.list.length)r.i=Math.max(0,r.list.length-1);
+  const n=r.list.length;
+  $("errHidBtn").hidden=!nHid;$("errHidBtn").textContent=r.voirMasquees?"Cacher les masquées":`Voir les masquées (${nHid})`;
+  if(!n){$("errBody").innerHTML=nHid?`<div class="empty">Tu as masqué toutes tes erreurs ici (${nHid}). « Voir les masquées » pour les retrouver ou les remettre.</div>`:'<div class="empty">Aucune erreur enregistrée.</div>';$("errNav").hidden=true;$("errBar").hidden=!nHid;$("errMode").hidden=$("errPdf").hidden=true;$("errPos").textContent="";return}
+  $("errMode").hidden=$("errPdf").hidden=false;
   $("errBar").hidden=false;$("errMode").textContent=r.all?"Une par une":"Tout afficher";
-  if(r.all){$("errPos").textContent=n+" erreur"+(n>1?"s":"");$("errBody").innerHTML='<div class="errlist">'+r.list.map(e=>ecard(e,true)).join("")+'</div>';$("errNav").hidden=true;return}
-  $("errNav").hidden=false;$("errPos").textContent=`Erreur ${r.i+1} sur ${n}`;$("errBody").innerHTML=ecard(r.list[r.i],r.show);
+  if(r.all){$("errPos").textContent=n+" erreur"+(n>1?"s":"");$("errBody").innerHTML='<div class="errlist">'+r.list.map((e,i)=>ecard(e,true)+errBtn(e,i)).join("")+'</div>';$("errNav").hidden=true;return}
+  $("errNav").hidden=false;$("errPos").textContent=`Erreur ${r.i+1} sur ${n}`;$("errBody").innerHTML=ecard(r.list[r.i],r.show)+(r.show?errBtn(r.list[r.i],r.i):"");
   $("errShow").textContent=r.show?"Masquer la correction":"Voir la correction";$("errPrev").disabled=r.i===0;$("errNext").disabled=r.i>=n-1}
 $("errClose").onclick=()=>{$("errDlg").hidden=true};
 $("errDlg").onclick=e=>{if(e.target.id==="errDlg")$("errDlg").hidden=true};
@@ -1128,6 +1140,11 @@ $("errShow").onclick=()=>{RV.show=!RV.show;renderErrs()};
 $("errNext").onclick=()=>{if(RV.i<RV.list.length-1){RV.i++;RV.show=false;renderErrs()}};
 $("errPrev").onclick=()=>{if(RV.i>0){RV.i--;RV.show=false;renderErrs()}};
 $("errMode").onclick=()=>{RV.all=!RV.all;renderErrs()};
+$("errHidBtn").onclick=()=>{RV.voirMasquees=!RV.voirMasquees;renderErrs()};
+$("errBody").addEventListener("click",ev=>{const b=ev.target.closest("[data-errhide]");if(!b||!RV)return;const e=RV.list[+b.dataset.errhide];if(!e)return;
+  if(!state.errHide||typeof state.errHide!=="object")state.errHide={};const k=errKey(e);
+  if(state.errHide[k])delete state.errHide[k];else{state.errHide[k]=todayIso;RV.show=false}
+  save();renderErrs();try{render()}catch(x){}});
 $("errPdf").onclick=errPdf;
 $("lcaForm").onsubmit=e=>{e.preventDefault();const n=$("lcaNew").value.trim();if(!n)return;state.lca.push({id:uid(),name:n,url:"",date:todayIso,note:""});$("lcaNew").value="";commit()};
 $("addForm").onsubmit=e=>{e.preventDefault();const n=$("newName").value.trim();if(!n)return;
@@ -2199,7 +2216,7 @@ async function api(body){
   const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE},body)),cache:"no-store"});
   if(!r.ok)throw new Error("HTTP "+r.status);return r.json();
 }
-function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[])),flash:JSON.parse(JSON.stringify(d.flash||[])),imagerie:JSON.parse(JSON.stringify(d.imagerie||{}))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
+function setState(d){state={courses:JSON.parse(JSON.stringify(d.courses||[])),sessions:JSON.parse(JSON.stringify(d.sessions||[])),lca:JSON.parse(JSON.stringify(d.lca||[])),events:JSON.parse(JSON.stringify(d.events||[])),fiches:JSON.parse(JSON.stringify(d.fiches||[])),flash:JSON.parse(JSON.stringify(d.flash||[])),imagerie:JSON.parse(JSON.stringify(d.imagerie||{})),errHide:JSON.parse(JSON.stringify(d.errHide||{}))};migrate();try{localStorage.setItem("carnet-revisions",JSON.stringify(state))}catch(e){}}
 function alertes(){
   const a=[E,LCA].filter(x=>x&&x.alerte).map(x=>`<span>${esc(x.alerte)}${x.alerteLien?` <a href="${esc(x.alerteLien)}" target="_blank" rel="noopener">Se reconnecter</a>`:""}</span>`);
   $("alerte").innerHTML=a.join("");$("alerte").hidden=!a.length;
