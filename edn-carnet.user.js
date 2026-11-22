@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Carnet de révisions — erreurs EDN
 // @namespace    https://margauxbouriez-a11y.github.io/auroremedecine/
-// @version      1.3.0
+// @version      1.4.0
 // @description  Sur EDN.fr : après chaque réponse, te demande si tu la mets dans ton carnet d'erreurs, avec un commentaire.
 // @match        https://www.edn.fr/*
 // @match        https://edn.fr/*
@@ -181,7 +181,7 @@
   let decides = new Set();      /* déjà au carnet ou refusées (n8n) + décisions locales */
   const vus = new Set();        /* déjà proposées dans cette page */
   let file = [];                /* réponses en attente de ta décision */
-  let ecranActif = false;
+  let ecranActif = false, premierPassage = true;
   let sid = null, ouvert = false, msg = '', occupe = false, reglages = false, attente = '', brouillon = '';
 
   /* numéro de série : dans l'adresse si possible (identifiant EDN de 26 caractères), sinon la dernière série ouverte, demandée à EDN */
@@ -217,6 +217,21 @@
     return false;
   }
 
+  /* une nouvelle question arrive : celles laissées sans réponse passent en « Non »,
+     sauf si tu as commencé un commentaire ou choisi « Plus tard » */
+  function expirer() {
+    const garder = [], partir = [];
+    file.forEach((r, i) => { ((i === 0 && brouillon.trim()) || r.garder) ? garder.push(r) : partir.push(r); });
+    if (!partir.length) return;
+    file = garder;
+    for (const r of partir) {
+      decides.add(r.cle);
+      n8n({ action: 'ignorer', erreur: Object.assign({}, r.erreur, { com: '' }) }).catch(() => {});
+    }
+    if (!garder.length) brouillon = '';
+    msg = partir.length + ' question' + (partir.length > 1 ? 's' : '') + ' sans réponse passée' + (partir.length > 1 ? 's' : '') + ' en « Non ».';
+  }
+
   function sonderEcran(manuel) {
     if (!CFG.cle) return;
     let r = null; try { r = lireEcran(); } catch (e) { r = null; diagEcran = 'écran : erreur ' + e.message; }
@@ -229,7 +244,8 @@
     if (vus.has(r.vu) || decides.has(r.cle)) return;
     vus.add(r.vu);
     if (!r.faux && !CFG.aussiJustes && !manuel) return;
-    file.push(r); ouvert = true; if (file.length === 1) msg = '';
+    if (!manuel) expirer();
+    file.push(r); ouvert = true; if (file.length === 1 && !/sans réponse/.test(msg)) msg = '';
     dessiner();
   }
 
@@ -240,14 +256,16 @@
     if (!sid || !CFG.cle || document.hidden) return;
     try {
       const ans = await tout('training_sessions/' + sid + '/list_my_training_session_question_answers?perPage=50&partial=true');
-      let nouveaux = 0;
+      let nouveaux = 0, expire = false;
       diag = diag.replace(/ · \d+ réponse.*$/, '') + ' · ' + ans.length + ' réponse' + (ans.length > 1 ? 's' : '') + ' lue' + (ans.length > 1 ? 's' : '');
       for (const a of ans) {
         const r = lire(a, sid);
         if (!r || vus.has(r.cle) || decides.has(r.cle)) continue;
         if (!r.faux && !CFG.aussiJustes) continue;
+        if (!expire && premierPassage) { expire = true; } else if (!expire) { expirer(); expire = true; }
         vus.add(r.cle); file.push(r); nouveaux++;
       }
+      premierPassage = false;
       /* on ne redessine que s'il y a du nouveau : sinon le commentaire en cours de frappe serait effacé */
       const avant = attente; attente = '';
       if (nouveaux) { if (!ouvert) ouvert = true; if (file.length === nouveaux) msg = ''; dessiner(); }
@@ -261,7 +279,7 @@
   async function decider(action) {
     const r = file[0]; if (!r || occupe) return;
     const com = ((racine.querySelector('#com') || {}).value || brouillon || '');
-    if (action === 'plustard') { file.push(file.shift()); brouillon = ''; dessiner(); return; }
+    if (action === 'plustard') { r.garder = true; file.push(file.shift()); brouillon = ''; dessiner(); return; }
     occupe = true; brouillon = com; dessiner();
     try {
       const rep = await n8n({ action: action === 'oui' ? 'ajouter' : 'ignorer', erreur: Object.assign({}, r.erreur, { com: com.trim() }) });
