@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Carnet de révisions — erreurs EDN
 // @namespace    https://margauxbouriez-a11y.github.io/auroremedecine/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Sur EDN.fr : après chaque réponse, te demande si tu la mets dans ton carnet d'erreurs, avec un commentaire.
 // @match        https://www.edn.fr/*
 // @match        https://edn.fr/*
@@ -130,15 +130,20 @@
     }
     return null;
   }
+  let diagEcran = '';
+  const estTitre = t => /^Question\s*(n°\s*)?\d+\b/i.test(t) && t.length < 40;
+  const estCorr = t => /^Correction\b/i.test(t) && t.length < 40;
   function lireEcran() {
-    const titre = feuilles(document.body, t => /^Question\s+\d+$/.test(t))[0];
-    const corr = feuilles(document.body, t => t === 'Correction')[0];
+    const titre = feuilles(document.body, estTitre)[0];
+    const corr = feuilles(document.body, estCorr)[0];
+    diagEcran = 'écran : titre ' + (titre ? 'oui' : 'non') + ', correction ' + (corr ? 'oui' : 'non');
     if (!titre || !corr) return null;
     let carte = titre; while (carte.parentElement && !carte.contains(corr)) carte = carte.parentElement;
     const lignes = carte.innerText.split('\n').map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
     const sc = carte.innerText.match(/(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)\s*pts/i);
     const g = sc ? Number(sc[1].replace(',', '.')) : null, mg = sc ? Number(sc[2].replace(',', '.')) : null;
-    const iQ = lignes.findIndex(l => /^Question\s+\d+$/.test(l)), iC = lignes.indexOf('Correction');
+    let iQ = lignes.findIndex(l => estTitre(l)), iC = lignes.findIndex((l, i) => i > iQ && estCorr(l));
+    if (iQ < 0) iQ = 0; if (iC < 0) iC = lignes.length;
     const props = [];
     for (let i = iQ + 1; i < iC; i++) {
       let m = lignes[i].match(/^([A-H])\.\s*(.*)$/);
@@ -148,6 +153,7 @@
       const el = feuilles(carte, x => x.indexOf(t.slice(0, 30)) >= 0 && x.length < t.length + 40)[0];
       props.push({ l: m[1], t, teinte: el ? teinte(el) : '', c: el ? coche(el) : null });
     }
+    diagEcran += ', ' + props.length + ' proposition' + (props.length > 1 ? 's' : '') + ' (' + props.map(p => p.l + (p.teinte === 'vert' ? '✓' : p.teinte === 'rouge' ? '✗' : '·')).join(' ') + ')' + (sc ? ', note ' + sc[1] + '/' + sc[2] : ', note ?');
     if (!props.length) return null;
     const iP = lignes.findIndex((l, i) => i > iQ && /^[A-H]\.\s*/.test(l));
     const enonce = lignes.slice(iQ + 1, iP).filter(l => !/répondent juste|\d\s*\/\s*\d+(?:[.,]\d+)?\s*pts|^(QRM|QRU|QROC|QRP|KFP|[A-Z])$/.test(l)).join(' ');
@@ -211,14 +217,18 @@
     return false;
   }
 
-  function sonderEcran() {
+  function sonderEcran(manuel) {
     if (!CFG.cle) return;
-    let r = null; try { r = lireEcran(); } catch (e) { r = null; }
+    let r = null; try { r = lireEcran(); } catch (e) { r = null; diagEcran = 'écran : erreur ' + e.message; }
+    if (manuel) {
+      if (!r) { msg = 'Je ne trouve pas de question corrigée à l\'écran (' + diagEcran + ').'; dessiner(); return; }
+      vus.delete(r.vu); decides.delete(r.cle); if (file.some(x => x.vu === r.vu)) { dessiner(); return; }
+    }
     if (!r) return;
     if (!ecranActif) { ecranActif = true; diag = 'question lue à l\'écran'; attente = ''; }
     if (vus.has(r.vu) || decides.has(r.cle)) return;
     vus.add(r.vu);
-    if (!r.faux && !CFG.aussiJustes) return;
+    if (!r.faux && !CFG.aussiJustes && !manuel) return;
     file.push(r); ouvert = true; if (file.length === 1) msg = '';
     dessiner();
   }
@@ -317,7 +327,8 @@
         <div class="row"><button class="b p" id="oui" ${occupe ? 'disabled' : ''}>Ajouter au carnet</button><button class="b" id="non" ${occupe ? 'disabled' : ''}>Non</button><button class="b" id="tard" ${occupe ? 'disabled' : ''}>Plus tard</button></div>`;
     } else {
       corps = `<div class="meta">${esc(ecranActif ? 'Réponds à la question : je te la proposerai dès que la correction s\'affiche.' : attente || (sid ? 'Toutes tes réponses de cette série sont traitées. Réponds à la question suivante : je te la proposerai dès qu\'elle est corrigée.' : 'Ouvre une série de questions EDN : je te demanderai après chaque réponse si tu veux la garder dans ton carnet.'))}</div>
-        <div class="meta" style="font-size:11px;opacity:.75">Diagnostic : ${esc(diag || '…')}${sid ? ' · série ' + esc(sid.slice(0, 6)) + '…' : ''} · ${esc(location.pathname.slice(0, 60))}</div>`;
+        <div class="row"><button class="b" id="lire">Lire cette question</button></div>
+        <div class="meta" style="font-size:11px;opacity:.75">Diagnostic : ${esc(diagEcran)} · ${esc(diag || '…')}${sid ? ' · série ' + esc(sid.slice(0, 6)) + '…' : ''} · ${esc(location.pathname.slice(0, 60))}</div>`;
     }
     racine.innerHTML = `<style>${CSS}</style><div class="card" role="dialog" aria-label="Carnet d'erreurs">
       <div class="hd"><h3>Carnet d'erreurs</h3>${CFG.cle && !reglages ? '<button class="lien" id="regl">Réglages</button>' : ''}<button class="x" id="fermer" title="Réduire">–</button></div>
@@ -327,6 +338,7 @@
     on('fermer', () => { ouvert = false; dessiner(); });
     on('regl', () => { reglages = true; dessiner(); });
     on('annul', () => { reglages = false; dessiner(); });
+    on('lire', () => { sonderEcran(true); });
     on('oui', () => decider('oui')); on('non', () => decider('non')); on('tard', () => decider('plustard'));
     on('enr', async () => {
       CFG.cle = racine.getElementById('cle').value.trim(); CFG.aussiJustes = racine.getElementById('justes').checked;
@@ -341,7 +353,7 @@
     sid = await sessionDeLaPage(); if (!CFG.cle) ouvert = true;
     dessiner(); sonder();
     setInterval(sonder, POLL);
-    setInterval(sonderEcran, 1500);
+    setInterval(() => sonderEcran(false), 1500);
     let derniere = location.href;
     setInterval(() => { if (location.href !== derniere) { derniere = location.href; sonder(); } }, 1000);
   })();
