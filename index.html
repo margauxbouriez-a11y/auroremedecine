@@ -500,6 +500,11 @@ tr.gh .revb{width:auto;margin:0 0 0 10px;padding:3px 10px;font-size:.8rem;font-f
           <div class="drow fl-pages" id="flPagesRow" hidden><span>Pages du chapitre</span><input type="number" id="flP1" min="1" aria-label="Première page"><span>à</span><input type="number" id="flP2" min="1" aria-label="Dernière page"></div>
           <div class="addrow"><button class="btn primary" id="flGo" type="submit">Générer les cartes</button><button class="btn" type="button" id="flStop" hidden>Arrêter</button></div>
         </form>
+        <details class="fl-help" id="gemBox"><summary id="gemSum">Générateur gratuit (Gemini)</summary>
+          <p class="hint">Avec une clé Gemini gratuite de Google, les cartes sont rédigées directement depuis cette page, sans n8n et sans crédits. Crée ta clé sur <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">aistudio.google.com</a> (« Create API key », compte Google, sans carte bancaire), puis colle-la ici. Elle reste uniquement dans ce navigateur. N'y mets jamais de données de patients : dans l'offre gratuite, Google peut utiliser les textes envoyés pour améliorer ses produits.</p>
+          <div class="addrow"><input type="password" id="gemKey" placeholder="Colle ta clé Gemini" autocomplete="off" spellcheck="false"><button class="btn" type="button" id="gemSave">Enregistrer</button><button class="btn" type="button" id="gemDel" hidden>Retirer</button></div>
+          <p class="hint" id="gemMsg"></p>
+        </details>
         <p class="hint" id="flStatus">Sans PDF, Claude s'appuie sur ses connaissances du référentiel. Avec le PDF du collège, il retrouve le chapitre de l'item et n'utilise que lui.</p>
         <div class="lhead" style="margin-top:16px"><h2>Mes paquets</h2><span class="label num" id="flN"></span></div>
         <div class="fc-list" id="flList"></div>
@@ -1432,7 +1437,7 @@ function qzAddHtml(s){
     <textarea id="qzMiss" rows="2" placeholder="Écris ce qui manque, par exemple : hypoglycémie, critères d'hospitalisation, traitement de l'état de mal épileptique…" ${m&&m.busy?"disabled":""}>${esc(m&&m.focus||"")}</textarea>
     <div class="qz-actions"><select id="qzMissN" aria-label="Nombre à ajouter">${[5,10,15,20].map(v=>`<option value="${v}"${(m&&m.n||10)===v?" selected":""}>${v} ${QC?"QCM":"cartes"}</option>`).join("")}</select><button class="btn" type="button" data-qz="more" ${m&&m.busy?"disabled":""}>${m&&m.busy?"Claude rédige…":QC?"Ajouter des QCM":"Ajouter des cartes"}</button></div>
     ${!qzPages(s)&&(s.p1||/d'après .+, pages \d+/.test(String(s.src||"")))?`<p class="hint" style="margin:0;color:var(--warn,#b45309)"><b>PDF du collège non chargé :</b> les nouvelles ${QC?"questions":"cartes"} seront écrites sans le chapitre. Ajoute d'abord ${esc(s.file||"le PDF du collège")} en haut de l'onglet.</p>`:""}
-    <p class="hint" style="margin:0">${m&&m.msg?esc(m.msg):"Claude rédige "+(QC?"de nouveaux QCM":"de nouvelles cartes")+" sur ces notions"+(qzPages(s)?" à partir du chapitre du collège":"")+", sans reprendre "+(QC?"ceux de la série, et les ajoute à la série.":"celles du paquet, et les ajoute au paquet.")}</p></div>`;
+    <p class="hint" style="margin:0">${m&&m.msg?esc(m.msg):flIA()+" rédige "+(QC?"de nouveaux QCM":"de nouvelles cartes")+" sur ces notions"+(qzPages(s)?" à partir du chapitre du collège":"")+", sans reprendre "+(QC?"ceux de la série, et les ajoute à la série.":"celles du paquet, et les ajoute au paquet.")}</p></div>`;
 }
 /* pages du collège de la série (enregistrées, ou relues dans « d'après X.pdf, pages A à B ») */
 function qzPages(s){
@@ -1732,8 +1737,177 @@ async function flFindChapter(n){
    la page vient chercher le résultat toutes les 5 s, ce qui évite la coupure des requêtes longues (~100 s) */
 const FLASH_RES=FLASH_API+"-resultat";
 function flPause(ms,sig){return new Promise((ok,ko)=>{if(sig.aborted)return ko(new DOMException("stop","AbortError"));const t=setTimeout(ok,ms);sig.addEventListener("abort",()=>{clearTimeout(t);ko(new DOMException("stop","AbortError"))},{once:true})})}
+function flPrompt(b){
+const item = String(b.item || '').slice(0, 20).trim();
+const titre = String(b.titre || '').slice(0, 200).trim();
+const college = String(b.college || '').slice(0, 120).trim();
+const qcm = b.genre === 'qcm';
+const nombre = Math.max(3, Math.min(60, parseInt(b.nombre, 10) || (qcm ? 10 : 30)));
+const texte = String(b.texte || '').slice(0, 150000);
+/* « notion » : même verso en couleurs que « fiche », mais le recto est seulement le nom de la notion */
+const notion = b.style === 'notion';
+const fiche = b.style === 'fiche' || notion;
+const partie = String(b.partie || '').slice(0, 20).trim();
+const focus = String(b.focus || '').slice(0, 400).trim();
+const eviter = (Array.isArray(b.eviter) ? b.eviter : []).map(x => String(x).replace(/\s+/g, ' ').slice(0, 200).trim()).filter(Boolean).slice(0, b.controle === true ? 150 : 80);
+/* « fiche » : le texte est la fiche de révision de l'étudiant ; chaque notion, sans exception, doit avoir sa carte.
+   « controle » : 2e passage qui ne crée des cartes que pour les notions de la fiche encore sans carte */
+const surFiche = b.source === 'fiche' && !qcm;
+const controle = surFiche && b.controle === true;
+const avecTexte = texte.length > 500 || (surFiche && texte.replace(/\s+/g, '').length > 10);
+/* mode « une carte par paragraphe » : seulement pour des cartes, sur une partie du texte du collège */
+const parPara = b.paragraphe === true && !qcm && !!partie && texte.length > 500;
+if (!item && !titre) return { ok: false, reponse: { ok: false, erreur: 'vide' } };
+const sujet = (item ? 'Item ' + item : '') + (titre ? (item ? ' : ' : '') + titre : '');
+const quoi = qcm ? 'QCM' : 'cartes';
+const source = surFiche
+  ? 'Source : le texte ci-dessous est la FICHE DE RÉVISION personnelle de l\'étudiant' + (partie ? ' (partie ' + partie + ')' : '') + '. Utilise UNIQUEMENT son contenu : n\'ajoute aucune notion qui n\'y figure pas, garde ses chiffres, ses abréviations et ses moyens mnémotechniques. Si une ligne est ambiguë, reformule-la fidèlement sans inventer.'
+  : texte.length > 500
+  ? 'Source : le texte ci-dessous est extrait du chapitre du collège' + (college ? ' (' + college + ')' : '') + ', découpé automatiquement : il peut commencer ou finir sur un chapitre voisin. N\'utilise que la partie qui traite de cet item, et rien qui n\'y figure pas.' + (partie ? '' : ' Si le texte ne contient pas le contenu de cet item (seulement un sommaire ou des objectifs), réponds une seule ligne {"erreur":"Les pages envoyées ne contiennent pas le contenu de l\'item, seulement son introduction."}.')
+  : 'Source : appuie-toi sur le référentiel du collège' + (college ? ' de ' + college : '') + ' et les recommandations françaises. Chiffres, doses et seuils uniquement si tu en es sûr.';
+const couverture = controle
+  ? 'CONTRÔLE : relis la fiche ci-dessous ligne par ligne et compare-la aux cartes déjà faites (liste ci-dessus). Crée une carte UNIQUEMENT pour chaque notion de la fiche qui n\'a encore AUCUNE carte (une ligne, une puce, une case de tableau, un chiffre, un élément de liste, un piège, un mnémotechnique oubliés). Si tout est déjà couvert, réponds seulement la ligne titre_item.'
+  : surFiche
+  ? 'Fais une carte pour CHAQUE notion de la fiche, SANS AUCUNE EXCEPTION, dans l\'ordre de la fiche : chaque ligne, puce, case de tableau, chiffre, seuil, liste, piège ou moyen mnémotechnique qui apporte une information doit être interrogé par au moins une carte (regroupe seulement les éléments d\'une même liste courte). Ne saute rien, même ce qui paraît secondaire ; ne fais jamais deux cartes identiques.'
+  : parPara
+  ? 'Ce texte est la partie ' + partie + ' du chapitre (les autres parties sont traitées séparément). Fais EXACTEMENT UNE carte par paragraphe du texte, dans l\'ordre du texte : un paragraphe = un paragraphe de prose, une puce d\'une liste, une ligne d\'un tableau, une note sous un tableau ou une légende de figure. N\'en saute AUCUN et ne fais JAMAIS deux cartes sur le même paragraphe. Chaque carte reprend les détails précis de son paragraphe (chiffres, seuils, listes complètes). Ne fais pas de carte sur le sommaire, la liste des situations de départ, le tableau des objectifs pédagogiques, la bibliographie, les « points clés » qui répètent le cours, ni sur un chapitre voisin. S\'il ne reste rien d\'utile, réponds seulement la ligne titre_item.'
+  : partie
+  ? 'Ce texte est la partie ' + partie + ' du chapitre : ne crée des ' + quoi + ' QUE sur ce passage (les autres parties sont traitées séparément) et couvre TOUT son contenu de rang A et B utile pour l\'EDN, sans rien omettre. S\'il ne contient rien d\'utile (sommaire, bibliographie, chapitre voisin), réponds seulement la ligne titre_item.'
+  : focus
+    ? 'Ne traite QUE ces aspects de l\'item (les autres sont traités séparément), en les couvrant entièrement : ' + focus + '.'
+    : 'Couvre TOUT le contenu de l\'item utile pour l\'EDN (rangs A puis B).';
+const combien = controle
+  ? ''
+  : surFiche
+  ? ' Autant de cartes que de notions dans ce texte (au moins ' + nombre + ').'
+  : parPara
+  ? ' Autant de cartes que de paragraphes (environ ' + nombre + ').'
+  : ' Environ ' + nombre + ' cartes, davantage si nécessaire pour ne rien omettre';
+const dejaVu = eviter.length ? '- Ces ' + quoi + ' existent déjà : n\'en répète AUCUN et ne repose pas la même notion sous une autre forme. Apporte uniquement des notions nouvelles :\n' + eviter.map(x => '  • ' + x).join('\n') + '\n' : '';
+let regles, exemple, intro;
+const sansC = surFiche ? dejaVu : '- RANG C EXCLU : ne crée ' + (qcm ? 'AUCUN QCM (ni aucune proposition de QCM)' : 'AUCUNE carte') + ' sur une notion de rang C, c\'est-à-dire les connaissances spécialisées hors programme de l\'EDN. Uniquement les rangs A et B. Si le texte signale des notions de rang C (grille de hiérarchisation, tableau ou mention « rang C »), ignore-les entièrement, même si elles occupent une partie du chapitre. Sans grille, reste sur les connaissances fondamentales attendues à l\'EDN et écarte les détails d\'hyperspécialiste.\n' + dejaVu;
+if (qcm) {
+  intro = 'Tu rédiges des QCM d\'entraînement en français, niveau concours EDN (épreuves dématérialisées nationales, 4e à 6e année de médecine), pour un étudiant. Sujet : « ' + sujet + ' ».';
+  regles = sansC + '- ' + couverture + ' Environ ' + nombre + ' QCM, répartis sur toutes les notions (définition, physiopathologie, clinique, examens, diagnostics différentiels, étiologies, traitement, complications, surveillance, urgences), sans doublon.\n'
+    + '- Format QRM de l\'EDN : un énoncé (question directe ou courte vignette clinique réaliste, âge/sexe/contexte/constantes si utile) et EXACTEMENT 5 propositions. De 1 à 5 propositions vraies : varie leur nombre d\'un QCM à l\'autre.\n'
+    + '- Niveau concours : propositions précises et sans ambiguïté, distracteurs plausibles, pièges classiques de l\'EDN (chiffres et seuils, examen de première intention, contre-indications, signes de gravité, molécule de choix). Évite « toutes les réponses » et les négations doubles.\n'
+    + '- Pour chaque proposition, une correction d\'une phrase commençant par « Vrai : » ou « Faux : » qui justifie. Puis une phrase « retenir » : la notion clé du QCM.\n'
+    + '- "rang" vaut "A" ou "B" (jamais "C") seulement si le texte l\'indique (grille de hiérarchisation), sinon "".';
+  exemple = '{"q":"Un homme de 62 ans présente une douleur thoracique rétrosternale constrictive depuis 40 minutes. Parmi les propositions suivantes, laquelle ou lesquelles sont exactes ?","props":["Un ECG 12 dérivations doit être réalisé dans les 10 minutes","Un dosage de troponine normal à H0 élimine un infarctus","Un sus-décalage du segment ST impose une stratégie de reperfusion en urgence","L\'aspirine est contre-indiquée avant la coronarographie","Le transport vers une salle de coronarographie se fait par SMUR"],"bonnes":[0,2,4],"corr":["Vrai : l\'ECG est l\'examen clé, à faire dans les 10 min.","Faux : une troponine précoce peut être normale, il faut un second dosage.","Vrai : un SCA ST+ impose une reperfusion urgente.","Faux : l\'aspirine est donnée dès le diagnostic.","Vrai : transfert médicalisé direct en salle de cathétérisme."],"retenir":"SCA ST+ : ECG < 10 min, aspirine, reperfusion en urgence via le SMUR.","rang":"A","theme":"SCA"}';
+} else if (fiche) {
+  intro = 'Tu crées des flashcards Anki en français pour un étudiant en médecine qui prépare l\'EDN. Sujet : « ' + sujet + ' ».';
+  regles = sansC + '- ' + couverture + combien + ' Une carte = un sujet et UN aspect (déf/épidémio, physiopath, clinique, paraclinique, diag différentiel, étiologies, ttt, complications, surveillance...), en suivant le plan du texte.\n'
+    + (notion
+      ? '- Recto (q) : UNIQUEMENT le nom de la notion, court (2 à 8 mots), sans numéro, sans tournure de question, sans « aspect » entre parenthèses, mais assez précis pour savoir quoi réciter (ex. « Restriction cognitive », « Critères du syndrome métabolique (IDF 2005) », « Contre-indications de la chirurgie bariatrique », « Rebond d\'adiposité précoce »). Deux cartes n\'ont jamais le même recto.\n- Verso (r) : TOUT ce qu\'il faut savoir sur cette notion d\'après le texte (définition, chiffres, listes complètes), sans répéter le recto.\n'
+      : '- Recto (q) au format exact « NN. Sujet abrégé (aspect, précision) », numéroté 01., 02., 03.… dans l\'ordre du chapitre. Abréviations médicales usuelles bienvenues (ttt, diag, CAT, SdG, EI…).\n')
+    + '- Verso (r) : 3 à 8 points numérotés « 1) », « 2) »… un par ligne, sous-points sur des lignes commençant par « - », conclusion éventuelle sur une ligne « => ». Style télégraphique, étudiant, dense.\n'
+    + '- Repères de couleur OBLIGATOIRES dans le verso : **notion clé à retenir** (rouge), [[chiffre, fréquence, seuil ou qualificatif]] (vert), {{déclencheur, examen, molécule ou élément à repérer}} (bleu), _(précision secondaire)_ (italique). Pas d\'autre mise en forme, pas de HTML.\n'
+    + '- "rang" vaut "A" ou "B" (jamais "C") seulement si le texte l\'indique (grille de hiérarchisation), sinon "".';
+  exemple = '{"q":"' + (notion ? 'Angor typique' : '04. Angor (clinique, typique)') + '","r":"1) {{DT angineuse}} = **rétrosternale en barre**, [[constrictive]], irradiation le + souvent [[bilatérale]] _(épaules, mâchoire)_\\n2) Déclenchée par l\'{{EFFORT}} ou une {{émotion}}\\n3) **Réversibilité complète** à l\'arrêt de l\'effort [[(<10 min)]] ou sous **TRINITRINE** [[(qq secondes)]]\\n=> **Signes atypiques** possibles chez la [[femme]], le [[sujet âgé]] et le [[diabétique]]","rang":"","theme":"clinique"}';
+} else {
+  intro = 'Tu crées des flashcards Anki en français pour un étudiant en médecine qui prépare l\'EDN. Sujet : « ' + sujet + ' ».';
+  regles = sansC + '- ' + couverture + combien + (parPara ? '' : ' ; une seule notion par carte.') + '\n- Question précise et autonome (compréhensible sans contexte), réponse courte : 1 à 3 lignes, listes séparées par « ; ».\n- Définitions, signes cliniques, examens, diagnostics différentiels, traitements, urgences, chiffres clés.\n- Pas de question vague ni de doublon. Mots-clés en gras avec **mot** dans la réponse.\n- "rang" vaut "A" ou "B" (jamais "C") seulement si le texte l\'indique (grille de hiérarchisation), sinon "".';
+  exemple = '{"q":"<question>","r":"<réponse>","rang":"A","theme":"<mot-clé court>"}';
+}
+const prompt = intro + '\n' + source + '\n\nRègles :\n' + regles + '\n\nFORMAT STRICT : une ligne par objet JSON, chacun sur une seule ligne' + (qcm ? '' : ' (retours à la ligne du verso écrits \\n)') + ', rien d\'autre (pas de texte autour, pas de bloc de code). Première ligne : {"titre_item":"<intitulé officiel de l\'item EDN, court, sans le numéro>"}. Puis une ligne par ' + (qcm ? 'QCM ("bonnes" = indices 0 à 4 des propositions vraies)' : 'carte') + ', par exemple :\n' + exemple + '\nSi le sujet n\'est pas médical ou est incompréhensible, réponds une seule ligne {"erreur":"<explication courte>"}.' + (avecTexte ? (surFiche ? '\n\nFICHE DE L\'ÉTUDIANT :\n' : '\n\nTEXTE DU COLLÈGE :\n') + texte : '');
+return { ok: true, prompt };
+
+}
+
+/* ===== Générateur gratuit : Gemini (Google AI Studio), appelé directement depuis la page, sans n8n =====
+   La clé reste dans ce navigateur (localStorage). Mêmes consignes et même lecture des cartes que le générateur n8n. */
+const GEM_API="https://generativelanguage.googleapis.com/v1beta/";
+let GEM=null;try{GEM=localStorage.getItem("carnet-gemini")||null}catch(e){}
+const GEMS={modeles:null,dernier:0,epuise:{}};
+try{const x=JSON.parse(localStorage.getItem("carnet-gemini-epuise")||"{}");if(x.j===new Date().toDateString())GEMS.epuise=x.m||{}}catch(e){}
+function gemEpuise(m){GEMS.epuise[m]=1;try{localStorage.setItem("carnet-gemini-epuise",JSON.stringify({j:new Date().toDateString(),m:GEMS.epuise}))}catch(e){}}
+async function gemModeles(sig){
+  if(GEMS.modeles)return GEMS.modeles;
+  const r=await fetch(GEM_API+"models?pageSize=200",{headers:{"x-goog-api-key":GEM},signal:sig,cache:"no-store"});
+  if(r.status===400||r.status===401||r.status===403)throw new Error("gemcle");
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const j=await r.json();
+  const ver=n=>{const m=n.match(/gemini-(\d+)(?:\.(\d+))?/);return m?(+m[1])*100+(+(m[2]||0)):0};
+  const ok=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes("generateContent")).map(m=>m.name.replace(/^models\//,""))
+    .filter(n=>/^gemini-/.test(n)&&/flash/.test(n)&&!/(image|tts|audio|live|embedding|robotics|computer|thinking-exp)/.test(n));
+  const stable=n=>!/(preview|exp|latest)/.test(n);
+  const tri=(a,b)=>(stable(b)-stable(a))||(ver(b)-ver(a))||(a.length-b.length);
+  const flash=ok.filter(n=>!/lite/.test(n)).sort(tri),lite=ok.filter(n=>/lite/.test(n)).sort(tri);
+  GEMS.modeles=[...flash.slice(0,2),...lite.slice(0,2)];
+  if(!GEMS.modeles.length)GEMS.modeles=["gemini-flash-latest","gemini-flash-lite-latest"];
+  return GEMS.modeles;
+}
+async function gemTexte(prompt,sig){
+  const modeles=(await gemModeles(sig)).filter(m=>!GEMS.epuise[m]);
+  if(!modeles.length)throw new Error("gemquota");
+  for(const m of modeles){
+    for(let essai=0;essai<4;essai++){
+      /* offre gratuite : quelques requêtes par minute, on espace les appels */
+      const attente=GEMS.dernier+13000-Date.now();if(attente>0)await flPause(attente,sig);
+      GEMS.dernier=Date.now();
+      const r=await fetch(GEM_API+"models/"+m+":generateContent",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":GEM},signal:sig,cache:"no-store",
+        body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{temperature:0.4,maxOutputTokens:32000}})});
+      if(r.status===401||r.status===403)throw new Error("gemcle");
+      if(r.status===429){
+        let t="";try{t=JSON.stringify(await r.json())}catch(e){}
+        if(/PerDay|per day|daily/i.test(t)){gemEpuise(m);break}
+        await flPause(30000,sig);continue;
+      }
+      if(r.status===404||r.status===400){let t="";try{t=JSON.stringify(await r.json())}catch(e){}if(/API key|API_KEY/i.test(t))throw new Error("gemcle");break}
+      if(r.status>=500){await flPause(8000,sig);continue}
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      const j=await r.json();
+      const c=(j.candidates||[])[0];
+      const txt=c&&c.content&&(c.content.parts||[]).filter(p=>!p.thought).map(p=>p.text||"").join("");
+      if(txt)return txt;
+      break;
+    }
+  }
+  if(modeles.every(m=>GEMS.epuise[m]))throw new Error("gemquota");
+  return "";
+}
+function flLire(t){
+  const cartes=[],qcms=[];let erreur=null,titre="";
+  for(let l of String(t||"").split("\n")){
+    l=l.trim().replace(/^```(json)?/,"").replace(/```$/,"").replace(/,$/,"").trim();
+    if(!l.startsWith("{"))continue;
+    try{
+      const o=JSON.parse(l);
+      if(o.titre_item){titre=String(o.titre_item).replace(/[:\n]/g," ").slice(0,90).trim();continue}
+      if(o.erreur){erreur=String(o.erreur);continue}
+      if(String(o.rang||"").trim().toUpperCase()==="C")continue;
+      const rang=o.rang==="A"||o.rang==="B"?o.rang:"",theme=String(o.theme||"").slice(0,40);
+      if(o.q&&Array.isArray(o.props)){
+        const props=o.props.map(String).slice(0,5);
+        const bonnes=[...new Set((Array.isArray(o.bonnes)?o.bonnes:[]).map(Number).filter(i=>i>=0&&i<5))].sort();
+        if(props.length===5&&bonnes.length)qcms.push({q:String(o.q),props,bonnes,corr:(Array.isArray(o.corr)?o.corr:[]).map(String).slice(0,5),retenir:String(o.retenir||""),rang,theme});
+        continue;
+      }
+      if(o.q&&o.r)cartes.push({q:String(o.q),r:String(o.r),rang,theme});
+    }catch(e){}
+  }
+  if(qcms.length)return{ok:true,qcms,titre};
+  if(cartes.length)return{ok:true,cartes,titre};
+  if(erreur)return{ok:false,erreur:"refus",message:erreur};
+  if(titre)return{ok:true,cartes:[],qcms:[],titre};
+  return{ok:false,erreur:"generation"};
+}
+async function gemCall(body){
+  const p=flPrompt(body);
+  if(!p.ok)return p.reponse;
+  return flLire(await gemTexte(p.prompt,FLS.ctl.signal));
+}
+function flIA(){return GEM?"Gemini":"Claude"}
+function flErrMsg(err){
+  const m=err&&err.message;
+  if(m==="cle")return "Clé du carnet refusée : rouvre le carnet avec ton lien.";
+  if(m==="gemcle")return "Ta clé Gemini est refusée par Google : vérifie-la dans « Générateur gratuit (Gemini) » ci-dessus.";
+  if(m==="gemquota")return "Le quota gratuit Gemini du jour est atteint : réessaie demain (il se remet à zéro chaque nuit).";
+  return GEM?"Gemini ne répond pas. Vérifie ta connexion et réessaie dans une minute.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie.";
+}
 async function flCall(body){
   const sig=FLS.ctl.signal;
+  if(GEM)return gemCall(body);
   const r=await fetch(FLASH_API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(Object.assign({k:CLE,asynchrone:true},body)),signal:sig,cache:"no-store"});
   if(!r.ok)throw new Error("HTTP "+r.status);
   const j=await r.json();
@@ -1762,7 +1936,7 @@ $("flForm").onsubmit=async e=>{
   const college=$("flCol").value.trim()||(c&&c.subjects[0])||"";
   const auto=$("flNb").value==="auto",QC=$("flKind").value==="qcm";
   FLS.ctl=new AbortController();const to=setTimeout(()=>FLS.ctl&&FLS.ctl.abort(),auto?2400000:960000);
-  flBusy(true,FLS.doc?"Lecture du collège…":"Claude rédige les "+(QC?"QCM":"cartes")+" de l'item "+n+"…");
+  flBusy(true,FLS.doc?"Lecture du collège…":flIA()+" rédige les "+(QC?"QCM":"cartes")+" de l'item "+n+"…");
   let texte="",src="d'après les connaissances du référentiel",pageParts=[];
   try{
     if(FLS.doc){
@@ -1778,7 +1952,7 @@ $("flForm").onsubmit=async e=>{
       texte=pageParts.join("\n\n").slice(0,150000);
       if(texte.replace(/\[page \d+\]|\s/g,"").length<800){$("flStatus").textContent="Ces pages ne contiennent presque pas de texte (PDF scanné ?). Essaie sans PDF ou avec un autre fichier.";return}
       src=`d'après ${FLS.file}, pages ${p1} à ${p2}`;
-      flProgress(`Chapitre trouvé (pages ${p1} à ${p2}). Claude rédige les ${QC?"QCM":"cartes"}…`);
+      flProgress(`Chapitre trouvé (pages ${p1} à ${p2}). ${flIA()} rédige les ${QC?"QCM":"cartes"}…`);
     }
     const style=$("flStyle").value;try{localStorage.setItem("carnet-fl-style",style)}catch(e){}
     const genre=QC?"qcm":"";
@@ -1802,7 +1976,7 @@ $("flForm").onsubmit=async e=>{
     $("flStatus").textContent=`${j.cartes.length} cartes prêtes${j.parties?` (tout l'item, rédigé en ${j.parties} parties)`:""}. Relis-les, puis envoie-les dans Anki.`+(j.manquantes?` ${j.manquantes} partie${j.manquantes>1?"s n'ont":" n'a"} pas pu être rédigée${j.manquantes>1?"s":""} : relance pour compléter.`:"");
     save();
   }catch(err){
-    $("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie.";
+    $("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":flErrMsg(err);
   }finally{clearTimeout(to);FLS.ctl=null;flBusy(false)}
 };
 async function flSubmitFiche(){
@@ -1825,12 +1999,12 @@ async function flSubmitFiche(){
     state.flash.unshift(s);if(state.flash.length>40)state.flash.length=40;FLS.cur=s.id;
     $("flStatus").textContent=`${j.cartes.length} cartes prêtes sur ta fiche (${j.parties} partie${j.parties>1?"s":""} ; contrôle des oublis : ${j.ajoutees?j.ajoutees+" carte"+(j.ajoutees>1?"s":"")+" ajoutée"+(j.ajoutees>1?"s":""):"aucune notion oubliée"}).`+(j.manquantes?` ${j.manquantes} partie${j.manquantes>1?"s n'ont":" n'a"} pas pu être rédigée${j.manquantes>1?"s":""} : relance pour compléter.`:"");
     save();
-  }catch(err){$("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":err&&err.message==="cle"?"Clé du carnet refusée : rouvre le carnet avec ton lien.":"Le générateur ne répond pas. Vérifie ta connexion et réessaie."}
+  }catch(err){$("flStatus").textContent=err&&err.name==="AbortError"?"Génération arrêtée.":flErrMsg(err)}
   finally{clearTimeout(to);FLS.ctl=null;flBusy(false)}
 }
 /* fiche : parties d'environ 3 500 caractères coupées entre deux lignes ; pour chaque partie, cartes puis contrôle des notions oubliées */
 async function flGenFiche(base,texte){
-  const T=3500,jobs=[];let bloc="";
+  const T=GEM?12000:3500,jobs=[];let bloc="";
   for(const l of texte.replace(/\r/g,"").split("\n")){
     if(l.length>T){if(bloc.trim()){jobs.push(bloc);bloc=""}for(let i=0;i<l.length;i+=T)jobs.push(l.slice(i,i+T));continue}
     if(bloc.length+l.length>T&&bloc.trim()){jobs.push(bloc);bloc=""}
@@ -1839,13 +2013,13 @@ async function flGenFiche(base,texte){
   if(bloc.trim())jobs.push(bloc);
   const nNot=t=>t.split("\n").filter(x=>x.replace(/[\s•\-–*·]/g,"").length>2).length;
   const res=new Array(jobs.length);let fait=0,ko=0,k=0,ajout=0;
-  flProgress(`Claude lit ta fiche (${jobs.length} partie${jobs.length>1?"s":""}) et fait une carte par notion…`);
+  flProgress(`${flIA()} lit ta fiche (${jobs.length} partie${jobs.length>1?"s":""}) et fait une carte par notion…`);
   const run=async i=>{
-    const corps={texte:jobs[i],partie:(i+1)+"/"+jobs.length,nombre:Math.max(3,Math.min(45,nNot(jobs[i])))};
+    const corps={texte:jobs[i],partie:(i+1)+"/"+jobs.length,nombre:Math.max(3,Math.min(GEM?150:45,nNot(jobs[i])))};
     for(let e=0;e<2&&!res[i];e++){
       try{const j=await flCall(Object.assign({},base,corps));
         if(j&&j.ok)res[i]=(j.cartes||[]).slice();else if(j&&j.erreur==="cle")throw new Error("cle");else if(j&&j.erreur==="refus")res[i]=[];}
-      catch(err){if(err.name==="AbortError"||err.message==="cle")throw err}
+      catch(err){if(err.name==="AbortError"||/^(cle|gemcle|gemquota)$/.test(err.message))throw err}
     }
     if(!res[i])ko++;
     else try{
@@ -1854,7 +2028,7 @@ async function flGenFiche(base,texte){
     }catch(err){if(err.name==="AbortError")throw err}
     fait++;flProgress(`Ta fiche : ${fait} partie${fait>1?"s":""} sur ${jobs.length} terminée${fait>1?"s":""} (cartes + contrôle des oublis)…`);
   };
-  await Promise.all([...Array(Math.min(3,jobs.length))].map(async()=>{while(k<jobs.length){const i=k++;await run(i)}}));
+  await Promise.all([...Array(Math.min(GEM?1:3,jobs.length))].map(async()=>{while(k<jobs.length){const i=k++;await run(i)}}));
   const vus=new Set(),cartes=[];
   for(const r of res){if(!r)continue;for(const c of r){const cle=String(c.q).replace(/^\s*\d+\.\s*/,"").toLowerCase().trim()+"|"+String(c.r).slice(0,40);if(vus.has(cle))continue;vus.add(cle);cartes.push(c)}}
   if(base.style==="fiche")cartes.forEach((c,i)=>{c.q=String(i+1).padStart(2,"0")+". "+String(c.q).replace(/^\s*\d+\.\s*/,"")});
@@ -1868,7 +2042,7 @@ async function flGenAuto(base,pageParts){
   const dens=QC?2500:flColor(base)?1800:900;let jobs=[];
   if(pageParts&&pageParts.length){
     /* cartes : 1 par paragraphe, en parties d’environ 6 000 caractères pour que chaque réponse reste sous le délai ; QCM : parties de 20 000 */
-    const PARA=!QC,TAILLE=PARA?6000:20000;
+    const PARA=!QC,TAILLE=PARA?(GEM?15000:6000):20000;
     const parties=[];
     for(const p of pageParts){
       if(p.length<=TAILLE){parties.push(p);continue}
@@ -1880,21 +2054,21 @@ async function flGenAuto(base,pageParts){
     /* paragraphes estimés : fins de ligne après un point, deux-points, point-virgule… (fins de paragraphe et de puce) */
     const nPara=t=>(t.match(/[.:;!?»)]\s*\n/g)||[]).length;
     jobs=jobs.map((t,i,a)=>PARA
-      ?{texte:t,partie:(i+1)+"/"+a.length,paragraphe:true,nombre:Math.max(4,Math.min(40,nPara(t)||Math.round(t.length/450)))}
+      ?{texte:t,partie:(i+1)+"/"+a.length,paragraphe:true,nombre:Math.max(4,Math.min(GEM?100:40,nPara(t)||Math.round(t.length/450)))}
       :{texte:t,partie:(i+1)+"/"+a.length,nombre:Math.max(QC?3:4,Math.min(QC?12:30,Math.round(t.replace(/\s+/g," ").length/dens)))});
   }else jobs=FL_FOCUS.map(f=>({focus:f,nombre:QC?8:flColor(base)?15:22}));
   const res=new Array(jobs.length);let fait=0,ko=0,k=0;
-  flProgress(`Claude rédige ${QC?"les QCM de ":""}tout l'item en ${jobs.length} parties…`);
+  flProgress(`${flIA()} rédige ${QC?"les QCM de ":""}tout l'item en ${jobs.length} parties…`);
   const run=async i=>{
     for(let essai=0;essai<2&&!res[i];essai++){
       try{const j=await flCall(Object.assign({},base,jobs[i]));
         if(j&&j.ok)res[i]=j;else if(j&&j.erreur==="cle")throw new Error("cle");else if(j&&j.erreur==="refus")res[i]={ok:true,cartes:[],qcms:[]};}
-      catch(e){if(e.name==="AbortError"||e.message==="cle")throw e}
+      catch(e){if(e.name==="AbortError"||/^(cle|gemcle|gemquota)$/.test(e.message))throw e}
     }
     if(!res[i])ko++;fait++;
-    flProgress(`Claude rédige ${QC?"les QCM de ":""}tout l'item : ${fait} partie${fait>1?"s":""} sur ${jobs.length} terminée${fait>1?"s":""}…`);
+    flProgress(`${flIA()} rédige ${QC?"les QCM de ":""}tout l'item : ${fait} partie${fait>1?"s":""} sur ${jobs.length} terminée${fait>1?"s":""}…`);
   };
-  await Promise.all([...Array(Math.min(3,jobs.length))].map(async()=>{while(k<jobs.length){const i=k++;await run(i)}}));
+  await Promise.all([...Array(Math.min(GEM?1:3,jobs.length))].map(async()=>{while(k<jobs.length){const i=k++;await run(i)}}));
   const vus=new Set(),cartes=[];let titre="";
   for(const r of res){if(!r)continue;titre=titre||r.titre||"";for(const c of r[KEY]||[]){const cle=c.q.replace(/^\s*\d+\.\s*/,"").toLowerCase().trim();if(vus.has(cle))continue;vus.add(cle);cartes.push(c)}}
   if(QC)return cartes.length?{ok:true,qcms:cartes,titre,parties:jobs.length,manquantes:ko}:{ok:false,erreur:"generation"};
@@ -1908,6 +2082,23 @@ $("flCards").onchange=e=>{const i=e.target.dataset.flkeep;const s=flCur();if(i==
 $("flCards").onclick=e=>{const b=e.target.closest("[data-flrm]");const s=flCur();if(!b||!s)return;s.cards.splice(+b.dataset.flrm,1);renderFlash();save()};
 $("flDeck").onchange=()=>{const s=flCur();if(!s)return;s.deck=$("flDeck").value.trim()||flDefaultDeck(s);save()};
 try{const st=localStorage.getItem("carnet-fl-style");if(st)$("flStyle").value=st}catch(e){}
+/* réglage de la clé Gemini */
+function gemUi(){
+  $("gemSum").textContent=GEM?"Générateur gratuit (Gemini) : activé":"Générateur gratuit (Gemini)";
+  $("gemDel").hidden=!GEM;$("gemKey").value="";$("gemKey").placeholder=GEM?"Clé enregistrée ("+GEM.slice(0,4)+"…"+GEM.slice(-4)+")":"Colle ta clé Gemini";
+  if(GEM)$("flStatus").textContent="Les cartes sont rédigées gratuitement par Gemini, directement depuis cette page.";
+}
+$("gemSave").onclick=async()=>{
+  const v=$("gemKey").value.trim();if(!v){$("gemMsg").textContent="Colle d'abord ta clé.";return}
+  $("gemMsg").textContent="Vérification de la clé auprès de Google…";
+  const ancien=GEM;GEM=v;GEMS.modeles=null;
+  try{const ctl=new AbortController();const m=await gemModeles(ctl.signal);try{localStorage.setItem("carnet-gemini",v)}catch(e){}
+    $("gemMsg").textContent="Clé enregistrée ✓ Modèle utilisé : "+m[0]+".";gemUi()}
+  catch(e){GEM=ancien;GEMS.modeles=null;$("gemMsg").textContent=e.message==="gemcle"?"Google refuse cette clé : vérifie que tu l'as copiée en entier.":"Impossible de joindre Google pour vérifier la clé. Réessaie."}
+};
+$("gemDel").onclick=()=>{GEM=null;GEMS.modeles=null;try{localStorage.removeItem("carnet-gemini")}catch(e){}$("gemMsg").textContent="Clé retirée : les cartes repassent par n8n.";gemUi()};
+gemUi();
+
 try{const k=localStorage.getItem("carnet-fl-kind");if(k)$("flKind").value=k;const sr=localStorage.getItem("carnet-fl-src");if(sr)$("flSrc").value=sr}catch(e){}flKindUi();
 $("flDel").onclick=()=>{
   const s=flCur();if(!s)return;
